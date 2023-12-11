@@ -9,9 +9,6 @@ from azureml.core.compute import ComputeTarget, AmlCompute
 
 cli_auth = AzureCliAuthentication()
 ws = Workspace(
-    #subscription_id="f5a67d06-2d09-4090-91cc-e3298907a021",
-    #resource_group="hugo-ml",
-    #workspace_name="hugo-eessi",
     subscription_id=os.environ['SUBSCRIPTION'],
     resource_group=os.environ['RESOURCEGROUP'],
     workspace_name=os.environ['WORKSPACE'],
