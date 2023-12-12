@@ -116,3 +116,34 @@ resource workspace 'Microsoft.MachineLearningServices/workspaces@2022-10-01' = {
     containerRegistry: containerRegistryId
   }
 }
+
+resource machineLearningCluster001 'Microsoft.MachineLearningServices/workspaces/computes@2022-05-01' = {
+  name: '${workspaceName}/cluster001'
+  location: location
+  tags: tags
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    computeType: 'AmlCompute'
+    computeLocation: location
+    description: 'Machine Learning cluster 001'
+    disableLocalAuth: true
+    properties: {
+      vmPriority: 'Dedicated'
+      vmSize: vmSizeParam
+      enableNodePublicIp: amlComputePublicIp
+      isolatedNetwork: false
+      osType: 'Linux'
+      remoteLoginPortPublicAccess: 'Disabled'
+      scaleSettings: {
+        minNodeCount: 0
+        maxNodeCount: 5
+        nodeIdleTimeBeforeScaleDown: 'PT120S'
+      }
+      subnet: {
+        id: computeSubnetId
+      }
+    }
+  }
+}
