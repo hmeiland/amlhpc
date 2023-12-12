@@ -9,6 +9,17 @@ subscription_id=os.environ['SUBSCRIPTION']
 resource_group=os.environ['CI_RESOURCE_GROUP']
 workspace_name=os.environ['CI_WORKSPACE']
 
+from azure.ai.ml import MLClient
+from azure.identity import DefaultAzureCredential
+
+credential = DefaultAzureCredential()
+
+ml_client = MLClient(
+    credential=credential,
+    subscription_id=subscription_id,
+    resource_group_name=resource_group,
+    workspace_name=workspace_name,
+    )
 
 cli_auth = AzureCliAuthentication()
 ws = Workspace(
@@ -57,12 +68,39 @@ def squeue():
         #line += "\t" + str(job.creation_context.created_by)
         print(line)
 
+def sbatch():
+    from azure.ai.ml import command
+    import argparse
+
+    parser = argparse.ArgumentParser(description='sbatch: submit jobs to Azure Machine Learning')
+    parser.add_argument('-p','--partition', type=str, 
+            help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
+    parser.add_argument('-w','--wrap', type=str, 
+            help='command line to be executed, should be enclosed with quotes')
+    args = parser.parse_args()
+    print(args.wrap)
+
+    command_job = command(
+        code="/home/azureuser/cloudfiles/code/Users/gaobrien/GeophysicsAML/gsobrien_F_shot_generate.py",
+        command=args.wrap, #command="hostname",
+        environment= "docker-test1:4",
+        instance_count=1,
+        compute=args.partition, #compute="hc44",
+        display_name="testjob"
+        )
+    returned_job = ml_client.jobs.create_or_update(command_job)
+    print(returned_job.name)
+
+
 
 if sys.argv[0].rsplit('/', 1)[-1] == "sinfo":
     sinfo()
     exit()
 if sys.argv[0].rsplit('/', 1)[-1] == "squeue":
     squeue()
+    exit()
+if sys.argv[0].rsplit('/', 1)[-1] == "sbatch":
+    sbatch()
     exit()
 
 
