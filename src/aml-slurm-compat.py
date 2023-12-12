@@ -57,12 +57,29 @@ def squeue():
         #line += "\t" + str(job.creation_context.created_by)
         print(line)
 
+def sbatch():
+    from azure.ai.ml import command
+    command_job = command(
+        code="/home/azureuser/cloudfiles/code/Users/gaobrien/GeophysicsAML/gsobrien_F_shot_generate.py",
+        command="hostname",
+        environment= "docker-test1:4",
+        instance_count=1,
+        compute="hc44",
+        display_name="testjob"
+        )
+    returned_job = ml_client.jobs.create_or_update(command_job)
+    print(returned_job.name)
+
+
 
 if sys.argv[0].rsplit('/', 1)[-1] == "sinfo":
     sinfo()
     exit()
 if sys.argv[0].rsplit('/', 1)[-1] == "squeue":
     squeue()
+    exit()
+if sys.argv[0].rsplit('/', 1)[-1] == "sbatch":
+    sbatch()
     exit()
 
 
