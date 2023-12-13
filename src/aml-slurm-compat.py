@@ -73,12 +73,16 @@ def sbatch():
     import argparse
 
     parser = argparse.ArgumentParser(description='sbatch: submit jobs to Azure Machine Learning')
+    parser.add_argument('-a','--array', default="None", type=str, 
+            help='index for array jobs')
     parser.add_argument('-p','--partition', type=str, 
             help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
+    parser.add_argument('-N','--nodes', type=int, 
+            help='amount of nodes to use for the job')
     parser.add_argument('-w','--wrap', type=str, 
             help='command line to be executed, should be enclosed with quotes')
     args = parser.parse_args()
-    print(args.wrap)
+    print("array is " + args.array)
 
     command_job = command(
         code="/home/azureuser/cloudfiles/code/Users/gaobrien/GeophysicsAML/gsobrien_F_shot_generate.py",
@@ -86,7 +90,7 @@ def sbatch():
         environment= "docker-test1:4",
         instance_count=1,
         compute=args.partition, #compute="hc44",
-        display_name="testjob"
+        #display_name="testjob"
         )
     returned_job = ml_client.jobs.create_or_update(command_job)
     print(returned_job.name)
