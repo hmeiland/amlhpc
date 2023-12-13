@@ -11,7 +11,7 @@ sudo apt-get install -y cvmfs
 # install EESSI configuration for CernVM-FS
 wget https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb
 sudo dpkg -i cvmfs-config-eessi_latest_all.deb
-rm -r cvmfs-config-eessi_latest_all.deb
+rm -f cvmfs-config-eessi_latest_all.deb
 
 # create client configuration file for CernVM-FS (no squid proxy, 10GB local CernVM-FS client cache)
 sudo bash -c "echo 'CVMFS_CLIENT_PROFILE="single"' > /etc/cvmfs/default.local"
