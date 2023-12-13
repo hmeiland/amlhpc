@@ -8,6 +8,7 @@ from azureml.core.compute import ComputeTarget, AmlCompute
 subscription_id=os.environ['SUBSCRIPTION']
 resource_group=os.environ['CI_RESOURCE_GROUP']
 workspace_name=os.environ['CI_WORKSPACE']
+pwd=os.environ['PWD']
 
 from azure.ai.ml import MLClient
 from azure.identity import DefaultAzureCredential
@@ -75,23 +76,46 @@ def sbatch():
     parser = argparse.ArgumentParser(description='sbatch: submit jobs to Azure Machine Learning')
     parser.add_argument('-a','--array', default="None", type=str, 
             help='index for array jobs')
-    parser.add_argument('-p','--partition', type=str, 
+    parser.add_argument('-p','--partition', type=str, required=True,
             help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
-    parser.add_argument('-N','--nodes', type=int, 
+    parser.add_argument('-N','--nodes', default=1, type=int, 
             help='amount of nodes to use for the job')
     parser.add_argument('-w','--wrap', type=str, 
             help='command line to be executed, should be enclosed with quotes')
+    parser.add_argument('script', nargs='?', default="None", type=str, 
+            help='script to be executed')
     args = parser.parse_args()
-    print("array is " + args.array)
+    print("script is " + args.script)
+    print("nodes is " + str(args.nodes))
 
-    command_job = command(
-        code="/home/azureuser/cloudfiles/code/Users/gaobrien/GeophysicsAML/gsobrien_F_shot_generate.py",
-        command=args.wrap, #command="hostname",
-        environment= "docker-test1:4",
-        instance_count=1,
-        compute=args.partition, #compute="hc44",
-        #display_name="testjob"
-        )
+    if (args.script == "None") and (args.wrap is None):
+        print("Missing: provide either script to execute as argument or commandline to execute through --wrap option")
+        exit(-1)
+
+    if (args.script != "None") and (args.wrap is not None):
+        print("Conflict: provide either script to execute as argument or commandline to execute through --wrap option")
+        exit(-1)
+
+    if (args.script != "None"):
+        command_job = command(
+            code=pwd + "/" + args.script,#code="/home/azureuser/cloudfiles/code/Users/gaobrien/GeophysicsAML/gsobrien_F_shot_generate.py",
+            command=args.script, #command="hostname",
+            environment= "docker-test1:4",
+            instance_count=args.nodes,
+            compute=args.partition, #compute="hc44",
+            #display_name="testjob"
+            )
+
+    if (args.wrap is not None):
+        command_job = command(
+            #code="/home/azureuser/cloudfiles/code/Users/gaobrien/GeophysicsAML/gsobrien_F_shot_generate.py",
+            command=args.wrap, #command="hostname",
+            environment= "docker-test1:4",
+            instance_count=args.nodes,
+            compute=args.partition, #compute="hc44",
+            #display_name="testjob"
+            )
+
     returned_job = ml_client.jobs.create_or_update(command_job)
     print(returned_job.name)
 
