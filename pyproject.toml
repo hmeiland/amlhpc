@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "aml-slurm"
+version = "0.0.1"
+authors = [ "Hugo Meiland <hugo.meiland@microsoft.com>" ]
+description = "Emulate Slurm HPC scheduler in Azure ML"
+readme = "README.md"
+packages = [
+    { include = "aml-slurm" }
+]
+
+[tool.poetry.scripts]
+sbatch = "aml-azure:sbatch" 
+#sbatch = {reference = "bin/sbatch", type = "file", extras = [], callable = []}
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+azure-ai-ml = "=1.12.1"
+azureml-core = ">=1.54.0post1"
+azure-cli = ""
+
+[project.urls]
+Homepage = "https://github.com/hmeiland/aml-slurm"
+Issues = "https://github.com/hmeiland/aml-slurm/issues"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
