@@ -4,7 +4,7 @@ from . import squeue, sbatch, sinfo
 
 log = getLogger('aml-slurm')
 
-parser = ArgumentParser('aml-slurm', description='aml-slurm: slurm APIs for Azure Machine Learning')
+parser = ArgumentParser('aml-slurm', description='aml-slurm: slurm APIs for Azure Machine Learning', add_help=False)
 parser.add_argument('command', help='sub-command to run', choices=['squeue','sbatch', 'sinfo'])
 
 args, extra_args = parser.parse_known_args()
