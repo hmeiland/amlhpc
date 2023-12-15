@@ -9,14 +9,15 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-sbatch = "aml-azure:sbatch" 
-#sbatch = {reference = "bin/sbatch", type = "file", extras = [], callable = []}
+sbatch = {reference = "bin/sbatch", type = "file"}
+sinfo = {reference = "bin/sinfo", type = "file"}
+squeue = {reference = "bin/squeue", type = "file"}
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
-azure-ai-ml = "=1.12.1"
-azureml-core = ">=1.54.0post1"
-azure-cli = ""
+azure-ai-ml = "^1.12.1"
+azure-identity = "^1.15.0"
+azureml-core = "^1.54.0"
 
 [project.urls]
 Homepage = "https://github.com/hmeiland/aml-slurm"

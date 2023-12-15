@@ -1,4 +1,4 @@
-def sinfo():
+def sinfo(vargs):
     import os,sys
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication
@@ -40,7 +40,7 @@ def sinfo():
         print(line)
 
 
-def squeue():
+def squeue(vargs):
     import os,sys
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication
@@ -86,7 +86,7 @@ def squeue():
         #line += "\t" + str(job.creation_context.created_by)
         print(line)
 
-def sbatch():
+def sbatch(vargs):
     import os,sys
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication
@@ -131,7 +131,7 @@ def sbatch():
             help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, 
             help='script to be executed')
-    args = parser.parse_args()
+    args = parser.parse_args(vargs)
     print("script is " + args.script)
     print("nodes is " + str(args.nodes))
 
