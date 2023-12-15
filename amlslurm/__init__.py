@@ -1,4 +1,4 @@
-def sinfo(vargs):
+def sinfo(vargs=None):
     import os,sys
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication
@@ -40,7 +40,7 @@ def sinfo(vargs):
         print(line)
 
 
-def squeue(vargs):
+def squeue(vargs=None):
     import os,sys
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication
@@ -86,7 +86,7 @@ def squeue(vargs):
         #line += "\t" + str(job.creation_context.created_by)
         print(line)
 
-def sbatch(vargs):
+def sbatch(vargs=None):
     import os,sys
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication

@@ -9,10 +9,9 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-#sbatch = 'amlslurm:sbatch'
-sbatch = { reference = "bin/sbatch", type = "file" }
-sinfo = { reference = "bin/sinfo", type = "file" }
-squeue = { reference = "bin/squeue", type = "file" }
+sbatch = 'amlslurm:sbatch'
+sinfo = 'amlslurm:sinfo'
+squeue = 'amlslurm:squeue'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
