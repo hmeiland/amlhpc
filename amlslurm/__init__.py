@@ -131,9 +131,10 @@ def sbatch(vargs):
             help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, 
             help='script to be executed')
+    #args = parser.parse_args()
     args = parser.parse_args(vargs)
-    print("script is " + args.script)
-    print("nodes is " + str(args.nodes))
+    #print("script is " + args.script)
+    #print("nodes is " + str(args.nodes))
 
     if (args.script == "None") and (args.wrap is None):
         print("Missing: provide either script to execute as argument or commandline to execute through --wrap option")
