@@ -18,6 +18,7 @@ python = ">=3.8,<4.0"
 azure-ai-ml = "^1.12.1"
 azure-identity = "^1.15.0"
 azureml-core = "^1.54.0"
+azure-cli = "^2.30.0"
 
 [project.urls]
 Homepage = "https://github.com/hmeiland/aml-slurm"
