@@ -102,12 +102,13 @@ def sbatch(vargs=None):
     parser.prog = "sbatch"
     parser.add_argument('-a', '--array', default="None", type=str, help='index for array jobs')
     parser.add_argument('--container', default="None", type=str, help='container environment for the job to run in')
+    parser.add_argument('--datamover', default="None", type=str, help='use "simple" for moving the (recursive) data along with the runscript')
     parser.add_argument('-e', '--environment', default="None", type=str, help='Azure Machine Learning environment, should be enclosed in quotes, may use @latest')
     parser.add_argument('-N', '--nodes', default=1, type=int, help='amount of nodes to use for the job')
     parser.add_argument('-p', '--partition', type=str, required=True,
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
     parser.add_argument('-w', '--wrap', type=str, help='command line to be executed, should be enclosed with quotes')
-    parser.add_argument('script', nargs='?', default="None", type=str, help='script to be executed')
+    parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
 
     if (args.script == "None") and (args.wrap is None):
@@ -130,23 +131,24 @@ def sbatch(vargs=None):
     if (args.environment == "None"):
         args.environment = "ubuntu2004-mofed@latest"
 
-    print(args.environment)
     if (args.script != "None"):
-        command_job = command(
-            code=pwd + "/" + args.script,
-            command=args.script,
-            environment=args.environment,
-            instance_count=args.nodes,
-            compute=args.partition,
-            )
+        job_code = pwd + "/" + args.script
+        job_command = args.script
 
     if (args.wrap is not None):
-        command_job = command(
-            command=args.wrap,
-            environment=args.environment,
-            instance_count=args.nodes,
-            compute=args.partition,
-            )
+        job_code = None 
+        job_command = args.wrap
+
+    if (args.datamover == "simple"):
+        job_code = pwd + "/"
+
+    command_job = command(
+        code=job_code,
+        command=job_command,
+        environment=args.environment,
+        instance_count=args.nodes,
+        compute=args.partition,
+        )
 
     returned_job = ml_client.jobs.create_or_update(command_job)
     print(returned_job.name)
