@@ -1,4 +1,4 @@
-def sinfo(vargs):
+def sinfo(vargs=None):
     import os
     from azureml.core import Workspace
     from azureml.core.authentication import AzureCliAuthentication
@@ -32,7 +32,7 @@ def sinfo(vargs):
         print(line)
 
 
-def squeue(vargs):
+def squeue(vargs=None):
     import os
 
     try:
@@ -70,7 +70,7 @@ def squeue(vargs):
         print(line)
 
 
-def sbatch(vargs):
+def sbatch(vargs=None):
     import os
 
     try:
@@ -98,6 +98,7 @@ def sbatch(vargs):
     import argparse
 
     parser = argparse.ArgumentParser(description='sbatch: submit jobs to Azure Machine Learning')
+    parser.prog = "sbatch"
     parser.add_argument('-a', '--array', default="None", type=str, help='index for array jobs')
     parser.add_argument('-p', '--partition', type=str, required=True,
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
