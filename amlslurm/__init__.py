@@ -4,22 +4,12 @@ def sinfo(vargs):
     from azureml.core.authentication import AzureCliAuthentication
     from azureml.core.compute import ComputeTarget, AmlCompute
 
-    subscription_id = os.environ['SUBSCRIPTION']
-    resource_group = os.environ['CI_RESOURCE_GROUP']
-    workspace_name = os.environ['CI_WORKSPACE']
-    # pwd=os.environ['PWD']
-
-    # from azure.ai.ml import MLClient
-    # from azure.identity import DefaultAzureCredential
-
-    # credential = DefaultAzureCredential()
-
-    # ml_client = MLClient(
-    #    credential=credential,
-    #    subscription_id=subscription_id,
-    #    resource_group_name=resource_group,
-    #    workspace_name=workspace_name,
-    #    )
+    try:
+        subscription_id = os.environ['SUBSCRIPTION']
+        resource_group = os.environ['CI_RESOURCE_GROUP']
+        workspace_name = os.environ['CI_WORKSPACE']
+    except Exception as error:
+        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
 
     cli_auth = AzureCliAuthentication()
     ws = Workspace(
@@ -44,14 +34,13 @@ def sinfo(vargs):
 
 def squeue(vargs):
     import os
-    # from azureml.core import Workspace
-    # from azureml.core.authentication import AzureCliAuthentication
-    # from azureml.core.compute import ComputeTarget, AmlCompute
 
-    subscription_id = os.environ['SUBSCRIPTION']
-    resource_group = os.environ['CI_RESOURCE_GROUP']
-    workspace_name = os.environ['CI_WORKSPACE']
-    # pwd=os.environ['PWD']
+    try:
+        subscription_id = os.environ['SUBSCRIPTION']
+        resource_group = os.environ['CI_RESOURCE_GROUP']
+        workspace_name = os.environ['CI_WORKSPACE']
+    except Exception as error:
+        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
 
     from azure.ai.ml import MLClient
     from azure.identity import DefaultAzureCredential
@@ -64,14 +53,6 @@ def squeue(vargs):
         resource_group_name=resource_group,
         workspace_name=workspace_name,
         )
-
-    # cli_auth = AzureCliAuthentication()
-    # ws = Workspace(
-    #    subscription_id=subscription_id,
-    #    resource_group=resource_group,
-    #    workspace_name=workspace_name,
-    #    auth=cli_auth
-    #    )
 
     job_list = []
     list_of_jobs = ml_client.jobs.list()
@@ -91,13 +72,14 @@ def squeue(vargs):
 
 def sbatch(vargs):
     import os
-    # from azureml.core import Workspace
-    # from azureml.core.authentication import AzureCliAuthentication
-    # from azureml.core.compute import ComputeTarget, AmlCompute
 
-    subscription_id = os.environ['SUBSCRIPTION']
-    resource_group = os.environ['CI_RESOURCE_GROUP']
-    workspace_name = os.environ['CI_WORKSPACE']
+    try:
+        subscription_id = os.environ['SUBSCRIPTION']
+        resource_group = os.environ['CI_RESOURCE_GROUP']
+        workspace_name = os.environ['CI_WORKSPACE']
+    except Exception as error:
+        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
+
     pwd = os.environ['PWD']
 
     from azure.ai.ml import MLClient
@@ -111,14 +93,6 @@ def sbatch(vargs):
         resource_group_name=resource_group,
         workspace_name=workspace_name,
         )
-
-    # cli_auth = AzureCliAuthentication()
-    # ws = Workspace(
-    #    subscription_id=subscription_id,
-    #    resource_group=resource_group,
-    #    workspace_name=workspace_name,
-    #    auth=cli_auth
-    #    )
 
     from azure.ai.ml import command
     import argparse
@@ -147,7 +121,6 @@ def sbatch(vargs):
             environment="docker-test1:4",
             instance_count=args.nodes,
             compute=args.partition,
-            # display_name="testjob"
             )
 
     if (args.wrap is not None):
@@ -156,7 +129,6 @@ def sbatch(vargs):
             environment="docker-test1:4",
             instance_count=args.nodes,
             compute=args.partition,
-            # display_name="testjob"
             )
 
     returned_job = ml_client.jobs.create_or_update(command_job)
