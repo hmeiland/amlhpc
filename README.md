@@ -4,6 +4,13 @@ Package to provide a -just enough- Slurm experience on Azure Machine Learning. U
 jobs and get insight into the state of the HPC system through a familiar way. Allow applications to interact with AML without 
 the need to re-program another integration.
 
+For the commands to function, the following environment variables have to be set:
+```
+SUBSCRIPTION=<guid of you Azure subscription e.g. 12345-12345-12345>
+CI_RESOURCE_GROUP=<name of the resource group where your Azure Machine Learning Workspace is created>
+CI_WORKSPACE=<name of your Azure MAchine Learning Workspace>
+```
+
 # sinfo
 
 Show the available partitions. sinfo does not take any options.
