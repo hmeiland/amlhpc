@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "amlslurm"
-version = "0.1.1"
+version = "0.1.2"
 authors = [ "Hugo Meiland <hugo.meiland@microsoft.com>", "Utkarsh Ayachit <uayachit@microsoft.com>" ]
 description = "Emulate Slurm HPC scheduler in Azure ML"
 readme = "README.md"
@@ -9,10 +9,12 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-#sbatch = 'amlslurm:sbatch'
-sbatch = { reference = "bin/sbatch", type = "file" }
-sinfo = { reference = "bin/sinfo", type = "file" }
-squeue = { reference = "bin/squeue", type = "file" }
+sbatch = 'amlslurm:sbatch'
+sinfo = 'amlslurm:sinfo'
+squeue = 'amlslurm:squeue'
+# sbatch = { reference = "bin/sbatch", type = "file" }
+# sinfo = { reference = "bin/sinfo", type = "file" }
+# squeue = { reference = "bin/squeue", type = "file" }
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
