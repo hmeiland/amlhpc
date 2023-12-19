@@ -68,6 +68,7 @@ The above example input file requires the latest version of the code to run, hen
 This can easily be done based on the Dockerfile and both dependency files provided in the repo. Create a new Environment, set the name to fnlgmd
 and select "Create a new docker context". Add the 3 required files and finish. The build will take a few minutes.
 
+![Custom Environment](custom-environment.png)
 
 The job can now be submitted with:
 ```
@@ -77,3 +78,4 @@ tough_candle_ld3n0b2lxp
 ```
 
 This should be a very quick job and the result can be found in the jobs "Outputs and logs" tab: 
+![Job results](output-and-logs.png)
