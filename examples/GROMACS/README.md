@@ -48,3 +48,6 @@ During the run, the "Output and logs" tab will be updated and can be tracked:
 Also the cpu and memory usage can be tracked:
 ![Gromacs monitoring](gromacs-monitoring.png)
 
+The final results can be found in that tab too: 
+![Gromacs results](gromacs-results.png)
+
