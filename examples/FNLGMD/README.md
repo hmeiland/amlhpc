@@ -79,3 +79,43 @@ tough_candle_ld3n0b2lxp
 
 This should be a very quick job and the result can be found in the jobs "Outputs and logs" tab: 
 ![Job results](output-and-logs.png)
+
+# running with the demo Docker container
+
+Since the code has been updated, the config file has to be tweaked to support the capabilities of the container. This is a working config file:
+```
+model_type: 'jtnn-fnl'
+smiles_input_file: 'all.txt'
+output_directory: './outputs/'
+scorer_type: 'FNL'
+num_epochs: 2
+
+#Selection/Optimization params
+optimizer_type: 'geneticoptimizer'
+tourn_size: 15
+mate_prob: 0.7
+mutate_prob: 0.1
+mutation_std: 1
+max_clones: 1
+optima_type: "maxima"
+selection_type: "tournament"
+elite_perc: 0
+
+initial_pop_size: 50
+max_population: 50
+
+#FNL JTNN
+vocab_path: 'all_vocab.txt'
+model_path: 'model.epoch-35'
+```
+
+All other files remained the same and now the job can be submitted with:
+```
+$ sbatch -p f16s --container="seantaylorblack/gmd_0_9:demo" --datamover=simple ./runscript.sh 
+Uploading LogP_demo (45.82 MBs): 100%|█████████████████████████████████████████████| 45816514/45816514 [00:00<00:00, 120227273.14it/s]
+calm_brake_g60ll50mf9
+```
+
+The results can again be found in the "Output and logs" tab of the job.
+
+Have fun!
