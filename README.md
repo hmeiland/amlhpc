@@ -11,7 +11,7 @@ CI_RESOURCE_GROUP=<name of the resource group where your Azure Machine Learning 
 CI_WORKSPACE=<name of your Azure MAchine Learning Workspace>
 ```
 
-In the Azure Machine Learning environment, the CI_RESOURCE_GROUP and CI_SORKGROUP are normally set, so you only need to export SUBSCRIPTION.
+In the Azure Machine Learning environment, the CI_RESOURCE_GROUP and CI_WORKGROUP are normally set, so you only need to export SUBSCRIPTION.
 
 # sinfo
 
