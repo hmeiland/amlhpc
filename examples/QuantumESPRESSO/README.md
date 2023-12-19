@@ -42,3 +42,6 @@ $ sbatch -p hbv2 --datamover=simple ./runscript.sh
 Uploading small (0.32 MBs): 100%|████████████████████████████████████████████████████████| 322826/322826 [00:00<00:00, 3461939.67it/s]
 purple_basket_6k8xvpjs7k
 ```
+
+The results can be found in the "Output and logs" tab:
+![QuantumESPRESSO results](qe-results.png)
