@@ -51,3 +51,37 @@ Also the cpu and memory usage can be tracked:
 The final results can be found in that tab too: 
 ![Gromacs results](gromacs-results.png)
 
+# run with multiple nodes
+
+The next step is to run Gromacs over multiple nodes using MPI and the InfiniBand interconnect that is available on e.g. HB120rs_v2 vm's.
+To do this, the runscript-2N.sh needs to be teaked to prepare the nodes and provide mpirun with the right variables:
+```
+#!/bin/bash
+parallel-ssh -i -H "${AZ_BATCH_HOST_LIST//,/ }" "mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org"
+source /cvmfs/pilot.eessi-hpc.org/versions/2023.06/init/bash
+
+ml load GROMACS
+export OMP_NUM_THREADS=14
+export OMPI_ALLOW_RUN_AS_ROOT=1
+export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
+for i in ${AZ_BATCH_HOST_LIST//,/ }
+do
+        echo "${i}:120" >> hostfile.txt
+done
+
+mpirun -x PATH -np 16 --map-by ppr:8:node --hostfile hostfile.txt gmx_mpi mdrun \
+    -s ion_channel.tpr \
+    -deffnm outputs/md.TESTCASE \
+    -cpt 1000 \
+    -maxh 1.0 \
+    -nsteps 500000 \
+    -ntomp $OMP_NUM_THREADS
+```
+
+now this can be submitted:
+```
+$ sbatch -p hbv2 -N 2 --datamover=simple ./runscript-2N.sh 
+Uploading GROMACS_TestCaseA (4.85 MBs): 100%|█████████████████████████████████████████| 4851160/4851160 [00:00<00:00, 26590538.75it/s]
+careful_nutmeg_sd06p39gn7
+```
