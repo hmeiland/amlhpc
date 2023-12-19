@@ -85,3 +85,6 @@ $ sbatch -p hbv2 -N 2 --datamover=simple ./runscript-2N.sh
 Uploading GROMACS_TestCaseA (4.85 MBs): 100%|█████████████████████████████████████████| 4851160/4851160 [00:00<00:00, 26590538.75it/s]
 careful_nutmeg_sd06p39gn7
 ```
+
+And the load is evenly balanced on the two vm's as can be seen in the monitoring:
+![Gromacs 2 nodes](gromacs-2nodes.png)
