@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "amlslurm"
-version = "0.1.4"
+version = "0.1.6"
 authors = [ "Hugo Meiland <hugo.meiland@microsoft.com>", "Utkarsh Ayachit <uayachit@microsoft.com>" ]
 description = "Emulate Slurm HPC scheduler in Azure ML"
 readme = "README.md"
@@ -17,7 +17,7 @@ squeue = 'amlslurm:squeue'
 python = ">=3.8,<4.0"
 azure-ai-ml = "^1.12.1"
 #azureml-core = "^1.54.0.post1"
-azure-cli = "^2.49.0"
+#azure-cli = "^2.49.0"
 
 [project.urls]
 Homepage = "https://github.com/hmeiland/aml-slurm"
