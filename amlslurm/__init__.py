@@ -1,9 +1,5 @@
 def sinfo(vargs=None):
     import os
-    from azureml.core import Workspace
-    from azureml.core.authentication import AzureCliAuthentication
-    from azureml.core.compute import ComputeTarget, AmlCompute
-
     try:
         subscription_id = os.environ['SUBSCRIPTION']
         resource_group = os.environ['CI_RESOURCE_GROUP']
@@ -11,24 +7,29 @@ def sinfo(vargs=None):
     except Exception as error:
         print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
 
-    cli_auth = AzureCliAuthentication()
-    ws = Workspace(
+    from azure.ai.ml import MLClient
+    from azure.identity import DefaultAzureCredential
+
+    credential = DefaultAzureCredential()
+
+    ml_client = MLClient(
+        credential=credential,
         subscription_id=subscription_id,
-        resource_group=resource_group,
+        resource_group_name=resource_group,
         workspace_name=workspace_name,
-        auth=cli_auth
         )
 
-    sinfo_list = ComputeTarget.list(workspace=ws)
+    sinfo_list = ml_client.compute.list(compute_type="AMLCompute")
+
     print("PARTITION\tAVAIL\tVM_SIZE\t\t\tNODES\tSTATE")
     for i in sinfo_list:
-        line = (AmlCompute.get(i).get('name'))
+        line = i.name
         if len(line) < 8:
             line += "\t"
-        line += "\tUP\t" + AmlCompute.get_status(i).vm_size + "\t"
+        line += "\tUP\t" + i.size + "\t"
         if len(line.expandtabs()) < 41:
             line += "\t"
-        line += str(AmlCompute.get(i).get('properties', {}).get('properties', {}).get('scaleSettings', {}).get('maxNodeCount'))
+        line += str(i.max_instances)
         print(line)
 
 

@@ -16,7 +16,7 @@ squeue = 'amlslurm:squeue'
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
 azure-ai-ml = "^1.12.1"
-azureml-core = "^1.54.0.post1"
+#azureml-core = "^1.54.0.post1"
 azure-cli = "^2.49.0"
 
 [project.urls]
