@@ -19,18 +19,34 @@ def sinfo(vargs=None):
         workspace_name=workspace_name,
         )
 
-    sinfo_list = ml_client.compute.list(compute_type="AMLCompute")
+    sinfo_list = ml_client.compute.list()
+    #sinfo_list = ml_client.compute.list(compute_type="AMLCompute")
+    #sinfo_usage_list = ml_client.compute.list_usage()
 
     print("PARTITION\tAVAIL\tVM_SIZE\t\t\tNODES\tSTATE")
     for i in sinfo_list:
+        #print(i)
         line = i.name
         if len(line) < 8:
             line += "\t"
-        line += "\tUP\t" + i.size + "\t"
+        try:
+            line += "\tUP\t" + i.size + "\t"
+        except:
+            line += "\tUP\t" + "unknown" + "\t\t"
         if len(line.expandtabs()) < 41:
             line += "\t"
-        line += str(i.max_instances)
+        try:
+            line += str(i.max_instances) + "\t"
+        except:
+            line += "unknown" + "\t"
+        try:
+            line += str(i.state)
+        except:
+            line += "unknown"
         print(line)
+
+    #for i in sinfo_usage_list:
+    #    print(i.type + " " + str(i.current_value))
 
 
 def squeue(vargs=None):
