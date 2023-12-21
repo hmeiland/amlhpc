@@ -83,21 +83,19 @@ def sbatch(vargs=None):
 
     pwd = os.environ['PWD']
 
-    from azure.ai.ml import MLClient
+    from azure.ai.ml import MLClient, command, Output
     from azure.identity import DefaultAzureCredential
+    from azure.ai.ml.entities import Environment
+    from azure.ai.ml.constants import AssetTypes, InputOutputModes
+    import argparse
 
     credential = DefaultAzureCredential()
-
     ml_client = MLClient(
         credential=credential,
         subscription_id=subscription_id,
         resource_group_name=resource_group,
         workspace_name=workspace_name,
         )
-
-    from azure.ai.ml import command
-    from azure.ai.ml.entities import Environment
-    import argparse
 
     parser = argparse.ArgumentParser(description='sbatch: submit jobs to Azure Machine Learning')
     parser.prog = "sbatch"
@@ -142,6 +140,11 @@ def sbatch(vargs=None):
 
     if (args.datamover == "simple"):
         job_code = pwd + "/"
+    
+    outputs = {}
+    if (args.datamover == "datastore"):
+        output_path = "azureml://datastores/workspacefilestore/paths/QE/small/"
+        outputs = {"job_workdir": Output(type=AssetTypes.URI_FOLDER, path=output_path, mode=InputOutputModes.RW_MOUNT)}
 
     command_job = command(
         code=job_code,
@@ -149,6 +152,7 @@ def sbatch(vargs=None):
         environment=args.environment,
         instance_count=args.nodes,
         compute=args.partition,
+        outputs=outputs,
         )
 
     returned_job = ml_client.jobs.create_or_update(command_job)
