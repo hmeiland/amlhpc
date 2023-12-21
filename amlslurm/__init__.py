@@ -143,7 +143,21 @@ def sbatch(vargs=None):
     
     outputs = {}
     if (args.datamover == "datastore"):
-        output_path = "azureml://datastores/workspacefilestore/paths/QE/small/"
+        print(pwd)
+        data_stores_list = ml_client.datastores.list()
+        data_stores_name_list = []
+        for j in data_stores_list:
+            data_stores_name_list.append(j.name)
+        pwd_list = pwd.split("/")
+        datastore=(list(set(data_stores_name_list).intersection(pwd_list)))
+        if not datastore:
+            print("Can not find a likely datastore, is it e.g. mounted as a different name?")
+            exit(-1)
+        print("datastore found: " + datastore[0])
+        datastore_index = pwd_list.index(datastore[0])
+        datastore_pwd = ('/'.join(pwd_list[datastore_index+1:]))
+        print("relative pwd: " + datastore_pwd)
+        output_path = "azureml://datastores/" + datastore[0] + "/paths/" + datastore_pwd
         outputs = {"job_workdir": Output(type=AssetTypes.URI_FOLDER, path=output_path, mode=InputOutputModes.RW_MOUNT)}
 
     command_job = command(
