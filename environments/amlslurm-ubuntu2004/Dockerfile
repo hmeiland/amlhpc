@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nfs-common lsb-release && \
+    nfs-common lsb-release pssh && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*  
 
