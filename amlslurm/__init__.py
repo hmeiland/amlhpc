@@ -176,6 +176,7 @@ def sbatch(vargs=None):
         output_path = "azureml://datastores/" + datastore[0] + "/paths/" + datastore_pwd
         outputs = {"job_workdir": Output(type=AssetTypes.URI_FOLDER, path=output_path, mode=InputOutputModes.RW_MOUNT)}
         job_code = None
+        job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + job_command
 
     command_job = command(
         code=job_code,
