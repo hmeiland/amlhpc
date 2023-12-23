@@ -159,7 +159,7 @@ def sbatch(vargs=None):
     
     outputs = {}
     if (args.datamover == "datastore"):
-        print(pwd)
+        # print(pwd)
         data_stores_list = ml_client.datastores.list()
         data_stores_name_list = []
         for j in data_stores_list:
@@ -169,14 +169,32 @@ def sbatch(vargs=None):
         if not datastore:
             print("Can not find a likely datastore, is it e.g. mounted as a different name?")
             exit(-1)
-        print("datastore found: " + datastore[0])
+        # print("datastore found: " + datastore[0])
         datastore_index = pwd_list.index(datastore[0])
         datastore_pwd = ('/'.join(pwd_list[datastore_index+1:]))
-        print("relative pwd: " + datastore_pwd)
+        # print("relative pwd: " + datastore_pwd)
         output_path = "azureml://datastores/" + datastore[0] + "/paths/" + datastore_pwd
         outputs = {"job_workdir": Output(type=AssetTypes.URI_FOLDER, path=output_path, mode=InputOutputModes.RW_MOUNT)}
         job_code = None
         job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + job_command
+
+    if (args.datamover == "nfs"):
+        # print(pwd)
+        pwd_list = pwd.split("/")
+        while pwd_list:
+            if (os.path.ismount('/'.join(pwd_list))): break
+            pwd_list.pop()
+        # print('/'.join(pwd_list))
+        os_stream = os.popen('mount -t nfs')
+        os_output = os_stream.read()
+        for line in os_output.splitlines():
+            # print(line)
+            words = line.split(" ")
+            # print(words[2])
+            if ('/'.join(pwd_list) == words[2]): break
+        # print("mount -t nfs " + words[0] + " " + words[2])
+        job_command = "mkdir -p " + words[2] + "; mount -t nfs " + words[0] + " " + words[2] + "; mount; cd " + pwd + "; ls -alh; " + job_command
+        job_code = None
 
     command_job = command(
         code=job_code,
@@ -185,7 +203,15 @@ def sbatch(vargs=None):
         instance_count=args.nodes,
         compute=args.partition,
         outputs=outputs,
+        environment_variables={},
         )
+
+    command_job.set_resources(
+       #instance_type="STANDARD_D2_v2",
+       #properties={"key": "new_val"},
+       #shm_size="3g",
+       )
+
 
     returned_job = ml_client.jobs.create_or_update(command_job)
     print(returned_job.name)
