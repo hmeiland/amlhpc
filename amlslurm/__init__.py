@@ -144,15 +144,15 @@ def sbatch(vargs=None):
         args.environment = "sbatch-container-image@latest"
 
     if (args.environment == "None"):
-        args.environment = "ubuntu2004-mofed@latest"
+        args.environment = "amlslurm-ubuntu2004@latest"
 
     if (args.script != "None"):
         job_code = pwd + "/" + args.script
-        job_command = args.script
+        sbatch_command = args.script
 
     if (args.wrap is not None):
         job_code = None 
-        job_command = args.wrap
+        sbatch_command = args.wrap
 
     if (args.datamover == "simple"):
         job_code = pwd + "/"
@@ -176,7 +176,7 @@ def sbatch(vargs=None):
         output_path = "azureml://datastores/" + datastore[0] + "/paths/" + datastore_pwd
         outputs = {"job_workdir": Output(type=AssetTypes.URI_FOLDER, path=output_path, mode=InputOutputModes.RW_MOUNT)}
         job_code = None
-        job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + job_command
+        job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + sbatch_command
 
     if (args.datamover == "nfs"):
         # print(pwd)
@@ -193,7 +193,9 @@ def sbatch(vargs=None):
             # print(words[2])
             if ('/'.join(pwd_list) == words[2]): break
         # print("mount -t nfs " + words[0] + " " + words[2])
-        job_command = "mkdir -p " + words[2] + "; mount -t nfs " + words[0] + " " + words[2] + "; mount; cd " + pwd + "; ls -alh; " + job_command
+        if (args.nodes > 1):
+            job_command = "parallel-ssh -i -H \"${AZ_BATCH_HOST_LIST//,/ }\" "
+        job_command += "\"mkdir -p " + words[2] + "; mount -t nfs " + words[0] + " " + words[2] + "\" ; cd " + pwd + "; " + sbatch_command
         job_code = None
 
     command_job = command(
