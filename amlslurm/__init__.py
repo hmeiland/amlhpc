@@ -104,6 +104,7 @@ def sbatch(vargs=None):
     from azure.ai.ml.entities import Environment
     from azure.ai.ml.constants import AssetTypes, InputOutputModes
     import argparse
+    import re
 
     credential = DefaultAzureCredential()
     ml_client = MLClient(
@@ -148,11 +149,11 @@ def sbatch(vargs=None):
 
     if (args.script != "None"):
         job_code = pwd + "/" + args.script
-        sbatch_command = args.script
+        job_command = args.script
 
     if (args.wrap is not None):
         job_code = None 
-        sbatch_command = args.wrap
+        job_command = args.wrap
 
     if (args.datamover == "simple"):
         job_code = pwd + "/"
@@ -176,7 +177,7 @@ def sbatch(vargs=None):
         output_path = "azureml://datastores/" + datastore[0] + "/paths/" + datastore_pwd
         outputs = {"job_workdir": Output(type=AssetTypes.URI_FOLDER, path=output_path, mode=InputOutputModes.RW_MOUNT)}
         job_code = None
-        job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + sbatch_command
+        job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + job_command
 
     if (args.datamover == "nfs"):
         # print(pwd)
@@ -194,26 +195,42 @@ def sbatch(vargs=None):
             if ('/'.join(pwd_list) == words[2]): break
         # print("mount -t nfs " + words[0] + " " + words[2])
         if (args.nodes > 1):
-            job_command = "parallel-ssh -i -H \"${AZ_BATCH_HOST_LIST//,/ }\" "
-        job_command += "\"mkdir -p " + words[2] + "; mount -t nfs " + words[0] + " " + words[2] + "\" ; cd " + pwd + "; " + sbatch_command
+            start_command = "parallel-ssh -i -H \"${AZ_BATCH_HOST_LIST//,/ }\" "
+        start_command += "\"mkdir -p " + words[2] + "; mount -t nfs " + words[0] + " " + words[2] + "\" ; cd " + pwd + "; "
+        job_command = start_command + job_command
         job_code = None
 
-    command_job = command(
-        code=job_code,
-        command=job_command,
-        environment=args.environment,
-        instance_count=args.nodes,
-        compute=args.partition,
-        outputs=outputs,
-        environment_variables={},
-        )
+    array_list = [0, 1, 1]
+    if (args.array != "None"):
+        array_list=re.split('-|:', args.array)
+        if len(array_list) == 2:
+            array_list.append('1')
+        array_list = [eval(i) for i in array_list]
+        print(str(array_list[0]) + " to " + str(array_list[1]) + " step " + str(array_list[2]))
+        array_list[1] += 1
 
-    command_job.set_resources(
-       #instance_type="STANDARD_D2_v2",
-       #properties={"key": "new_val"},
-       #shm_size="3g",
-       )
+    job_env = { "SLURM_JOB_NODES": args.nodes,
+                "SLURM_ARRAY_TASK_COUNT": array_list[1],
+              }
+    
+    for index in range(array_list[0], array_list[1], array_list[2]):
+        job_env["SLURM_ARRAY_TASK_ID"] = index
 
+        command_job = command(
+            code=job_code,
+            command=job_command,
+            environment=args.environment,
+            instance_count=args.nodes,
+            compute=args.partition,
+            outputs=outputs,
+            environment_variables=job_env,
+            )
 
-    returned_job = ml_client.jobs.create_or_update(command_job)
-    print(returned_job.name)
+        command_job.set_resources(
+            #instance_type="STANDARD_D2_v2",
+            #properties={"key": "new_val"},
+            #shm_size="3g",
+            )
+
+        returned_job = ml_client.jobs.create_or_update(command_job)
+        print(returned_job.name)
