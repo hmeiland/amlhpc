@@ -1,17 +1,17 @@
 [tool.poetry]
-name = "amlslurm"
-version = "0.1.6"
+name = "amlhpc"
+version = "0.1.7"
 authors = [ "Hugo Meiland <hugo.meiland@microsoft.com>", "Utkarsh Ayachit <uayachit@microsoft.com>" ]
-description = "Emulate Slurm HPC scheduler in Azure ML"
+description = "Emulate Slurm/PBS/LSF HPC scheduler in Azure ML"
 readme = "README.md"
 packages = [
-    { include = "amlslurm" }
+    { include = "amlhpc" }
 ]
 
 [tool.poetry.scripts]
-sbatch = 'amlslurm:sbatch'
-sinfo = 'amlslurm:sinfo'
-squeue = 'amlslurm:squeue'
+sbatch = 'amlhpc.slurm.sbatch:sbatch'
+sinfo = 'amlhpc.slurm.sinfo:sinfo'
+squeue = 'amlhpc.slurm.squeue:squeue'
 
 [tool.poetry.dependencies]
 python = ">=3.8,<4.0"
