@@ -106,12 +106,17 @@ def sbatch(vargs=None):
     import argparse
     import re
 
+    import logging
+    logging.getLogger('azure.ai.ml._utils').setLevel(logging.CRITICAL)
+
+
     credential = DefaultAzureCredential()
     ml_client = MLClient(
         credential=credential,
         subscription_id=subscription_id,
         resource_group_name=resource_group,
         workspace_name=workspace_name,
+        enable_telemetry=False,
         )
 
     parser = argparse.ArgumentParser(description='sbatch: submit jobs to Azure Machine Learning')
@@ -127,6 +132,7 @@ def sbatch(vargs=None):
     parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
 
+    job_env = { "SLURM_JOB_NODES": args.nodes }
     if (args.script == "None") and (args.wrap is None):
         print("Missing: provide either script to execute as argument or commandline to execute through --wrap option")
         exit(-1)
@@ -208,10 +214,12 @@ def sbatch(vargs=None):
         array_list = [eval(i) for i in array_list]
         print(str(array_list[0]) + " to " + str(array_list[1]) + " step " + str(array_list[2]))
         array_list[1] += 1
-
-    job_env = { "SLURM_JOB_NODES": args.nodes,
-                "SLURM_ARRAY_TASK_COUNT": array_list[1],
-              }
+        task_index_list = []
+        for index in range(array_list[0], array_list[1], array_list[2]):
+            task_index_list.append(index)
+        print(task_index_list)
+        print(len(task_index_list))
+        job_env["SLURM_ARRAY_TASK_COUNT"] = len(task_index_list)
     
     for index in range(array_list[0], array_list[1], array_list[2]):
         job_env["SLURM_ARRAY_TASK_ID"] = index
