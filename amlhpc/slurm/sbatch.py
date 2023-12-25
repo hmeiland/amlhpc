@@ -10,10 +10,12 @@ def sbatch(vargs=None):
 
     pwd = os.environ['PWD']
 
-    from azure.ai.ml import MLClient, command, Output
+    from azure.ai.ml import MLClient, command, parallel, Output, Input
     from azure.identity import DefaultAzureCredential
     from azure.ai.ml.entities import Environment
     from azure.ai.ml.constants import AssetTypes, InputOutputModes
+    from azure.ai.ml.sweep import Choice
+    # from azure.ai.ml.parallel import parallel_run_function, RunFunction, ParallelJob
     import argparse
     import re
 
@@ -39,6 +41,7 @@ def sbatch(vargs=None):
     parser.add_argument('-N', '--nodes', default=1, type=int, help='amount of nodes to use for the job')
     parser.add_argument('-p', '--partition', type=str, required=True,
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
+    parser.add_argument('--parallel', type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('-w', '--wrap', type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
@@ -132,7 +135,67 @@ def sbatch(vargs=None):
         print(len(task_index_list))
         job_env["SLURM_ARRAY_TASK_COUNT"] = len(task_index_list)
     
-    for index in range(array_list[0], array_list[1], array_list[2]):
+    if (args.parallel == "parallel"):
+        # parallel job to process file data
+        parallel_job = parallel.parallel_run_function(
+            name="test par job",
+            #display_name="Batch Score with File Dataset",
+            #description="parallel component for batch score",
+            #inputs=dict(
+            #    job_data_path=Input(
+            #        type=AssetTypes.MLTABLE,
+            #        description="The data to be split and scored in parallel",
+            #        )
+            #    ),
+            #outputs=dict(job_output_path=Output(type=AssetTypes.MLTABLE)),
+            #input_data="${{inputs.job_data_path}}",
+            #instance_count=2,
+            #mini_batch_size="1",
+            #mini_batch_error_threshold=1,
+            #max_concurrency_per_instance=10,
+            #code="runscript.sh",
+            task=parallel.RunFunction(
+                code="runscript.sh",
+            #    entry_script="file_batch_inference.py",
+            #    program_arguments="--job_output_path ${{outputs.job_output_path}}",
+            #    environment="azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu:1",
+            ),
+        )
+
+        returned_job = ml_client.jobs.create_or_update(parallel_job)
+        print(returned_job.name)
+
+    if (args.parallel == "sweep"):
+        command_job = command(
+            code=job_code,
+            command=job_command,
+            environment=args.environment,
+            instance_count=args.nodes,
+            compute=args.partition,
+            outputs=outputs,
+            inputs={"SLURM_ARRAY_TASK_ID": 0},
+            environment_variables=job_env,
+            )
+
+        command_job_for_sweep = command_job(
+            SLURM_ARRAY_TASK_ID=Choice(values=task_index_list),
+            )
+
+        sweep_job = command_job_for_sweep.sweep(
+            compute=args.partition,
+            sampling_algorithm="random",
+            primary_metric="None",
+            goal="Minimize",
+            )
+
+        sweep_job.set_limits(max_concurrent_trials=2)
+        #sweep_job.settings(max_concurrency_per_instance=2)
+
+        returned_job = ml_client.jobs.create_or_update(sweep_job)
+        print(returned_job.name)
+
+    else:
+        #for index in range(array_list[0], array_list[1], array_list[2]):
         job_env["SLURM_ARRAY_TASK_ID"] = index
 
         command_job = command(
@@ -145,11 +208,15 @@ def sbatch(vargs=None):
             environment_variables=job_env,
             )
 
-        command_job.set_resources(
+        #command_job.set_resources(
             #instance_type="STANDARD_D2_v2",
             #properties={"key": "new_val"},
             #shm_size="3g",
-            )
+        #    )
+        #command_job.set_limits(
+        #    timeout=600,
+        #    max_nodes=4,
+        #    )
 
         returned_job = ml_client.jobs.create_or_update(command_job)
         print(returned_job.name)
