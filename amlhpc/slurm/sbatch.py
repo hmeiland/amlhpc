@@ -10,12 +10,11 @@ def sbatch(vargs=None):
 
     pwd = os.environ['PWD']
 
-    from azure.ai.ml import MLClient, command, parallel, Output, Input
+    from azure.ai.ml import MLClient, Output, Input, command
     from azure.identity import DefaultAzureCredential
-    from azure.ai.ml.entities import Environment
+    from azure.ai.ml.entities import Environment, CommandJob
     from azure.ai.ml.constants import AssetTypes, InputOutputModes
-    from azure.ai.ml.sweep import Choice
-    # from azure.ai.ml.parallel import parallel_run_function, RunFunction, ParallelJob
+    from azure.ai.ml.sweep import SweepJob, SweepJobLimits, Choice, Objective
     import argparse
     import re
 
@@ -41,12 +40,13 @@ def sbatch(vargs=None):
     parser.add_argument('-N', '--nodes', default=1, type=int, help='amount of nodes to use for the job')
     parser.add_argument('-p', '--partition', type=str, required=True,
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
-    parser.add_argument('--parallel', type=str, help='command line to be executed, should be enclosed with quotes')
+    parser.add_argument('--parallel', default="single", type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('-w', '--wrap', type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
 
     job_env = { "SLURM_JOB_NODES": args.nodes }
+
     if (args.script == "None") and (args.wrap is None):
         print("Missing: provide either script to execute as argument or commandline to execute through --wrap option")
         exit(-1)
@@ -120,51 +120,36 @@ def sbatch(vargs=None):
         job_command = start_command + job_command
         job_code = None
 
-    array_list = [0, 1, 1]
     if (args.array != "None"):
-        array_list=re.split('-|:', args.array)
-        if len(array_list) == 2:
-            array_list.append('1')
-        array_list = [eval(i) for i in array_list]
-        print(str(array_list[0]) + " to " + str(array_list[1]) + " step " + str(array_list[2]))
-        array_list[1] += 1
-        task_index_list = []
-        for index in range(array_list[0], array_list[1], array_list[2]):
-            task_index_list.append(index)
-        print(task_index_list)
-        print(len(task_index_list))
+        array_list_1=re.split('%', args.array)
+        if len(array_list_1) == 2:
+            max_nodes=int(array_list_1[1])
+            #print(max_nodes)
+        array_list_2=re.split(':', array_list_1[0])
+        if len(array_list_2) == 2:
+            step=int(array_list_2[1])
+        else:
+            step=1
+        #print(step)
+        array_list_3=re.split('-', array_list_2[0])
+        array_list_4=re.split(',', array_list_3[0])
+        task_index_list = [eval(i) for i in array_list_4]
+        if len(array_list_3) == 2:
+            array_end=int(array_list_3[1])
+            #print(array_end)
+            array_start=int(task_index_list.pop())
+            #print(array_start)
+            #print(str(array_start) + " to " + str(array_end) + " step " + str(step))
+            array_end += 1
+            for index in range(array_start, array_end, step):
+                task_index_list.append(index)
+        #print(task_index_list)
+        #print(len(task_index_list))
+        if len(array_list_1) == 1:
+            max_nodes=len(task_index_list)
         job_env["SLURM_ARRAY_TASK_COUNT"] = len(task_index_list)
+        args.parallel="sweepjob"
     
-    if (args.parallel == "parallel"):
-        # parallel job to process file data
-        parallel_job = parallel.parallel_run_function(
-            name="test par job",
-            #display_name="Batch Score with File Dataset",
-            #description="parallel component for batch score",
-            #inputs=dict(
-            #    job_data_path=Input(
-            #        type=AssetTypes.MLTABLE,
-            #        description="The data to be split and scored in parallel",
-            #        )
-            #    ),
-            #outputs=dict(job_output_path=Output(type=AssetTypes.MLTABLE)),
-            #input_data="${{inputs.job_data_path}}",
-            #instance_count=2,
-            #mini_batch_size="1",
-            #mini_batch_error_threshold=1,
-            #max_concurrency_per_instance=10,
-            #code="runscript.sh",
-            task=parallel.RunFunction(
-                code="runscript.sh",
-            #    entry_script="file_batch_inference.py",
-            #    program_arguments="--job_output_path ${{outputs.job_output_path}}",
-            #    environment="azureml:AzureML-sklearn-0.24-ubuntu18.04-py37-cpu:1",
-            ),
-        )
-
-        returned_job = ml_client.jobs.create_or_update(parallel_job)
-        print(returned_job.name)
-
     if (args.parallel == "sweep"):
         command_job = command(
             code=job_code,
@@ -188,13 +173,33 @@ def sbatch(vargs=None):
             goal="Minimize",
             )
 
-        sweep_job.set_limits(max_concurrent_trials=2)
-        #sweep_job.settings(max_concurrency_per_instance=2)
+        sweep_job.set_limits(max_concurrent_trials=max_nodes)
 
         returned_job = ml_client.jobs.create_or_update(sweep_job)
         print(returned_job.name)
 
-    else:
+    if (args.parallel == "sweepjob"):
+        command_job = CommandJob(
+            compute=args.partition,
+            environment=args.environment,
+            code=job_code,
+            command="export SLURM_ARRAY_TASK_ID=`echo $AZUREML_SWEEP_SLURM_ARRAY_TASK_ID`; " +job_command,
+            environment_variables=job_env,
+            )
+
+        sweep_job = SweepJob(
+            sampling_algorithm="random",
+            trial=command_job,
+            search_space={ "SLURM_ARRAY_TASK_ID": Choice(values=task_index_list)},
+            compute=args.partition,
+            limits=SweepJobLimits(max_concurrent_trials=max_nodes),
+            objective=Objective(goal="maximize", primary_metric="none"),
+        )
+
+        returned_job = ml_client.jobs.create_or_update(sweep_job)
+        print(returned_job.name)
+
+    if (args.parallel == "single"):
         #for index in range(array_list[0], array_list[1], array_list[2]):
         job_env["SLURM_ARRAY_TASK_ID"] = index
 
