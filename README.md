@@ -41,7 +41,7 @@ Submit a job, either as a command through the `--wrap` option or a (shell) scrip
 Quite a bit of sbatch options are supported such as running multi-node MPI jobs with the option to set the amount of nodes to be used.
 Also array jobs are supported with the default `--array` option.
 
-Some additional options are introduced to support e.g. the data-handling methods available in AML. These are explaned here: [data.md]. 
+Some additional options are introduced to support e.g. the data-handling methods available in AML. These are explaned in [data.md](data.md). 
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sbatch -p f16s --wrap="hostname"
 gifted_engine_yq801rygm2
