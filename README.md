@@ -1,6 +1,6 @@
-# aml-slurm
+# amlhpc
 
-Package to provide a -just enough- Slurm experience on Azure Machine Learning. Use the infamous sbatch/sinfo/squeue to submit
+Package to provide a -just enough- Slurm or PBS experience on Azure Machine Learning. Use the infamous sbatch/qsub/sinfo to submit
 jobs and get insight into the state of the HPC system through a familiar way. Allow applications to interact with AML without 
 the need to re-program another integration.
 
@@ -37,7 +37,11 @@ polite_lock_v8wyc9gnx9          runscript.sh    f16s
 
 # sbatch
 
-Submit a job, either as a command through the wrap option or a script. sbatch uses several options, which are explained in sbatch --help.
+Submit a job, either as a command through the `--wrap` option or a (shell) script. sbatch uses several options, which are explained in sbatch --help.
+Quite a bit of sbatch options are supported such as running multi-node MPI jobs with the option to set the amount of nodes to be used.
+Also array jobs are supported with the default `--array` option.
+
+Some additional options are introduced to support e.g. the data-handling methods available in AML. These are explaned here: [data.md]. 
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sbatch -p f16s --wrap="hostname"
 gifted_engine_yq801rygm2
@@ -61,3 +65,5 @@ optional arguments:
                         amount of nodes to use for the job
   -w WRAP, --wrap WRAP  command line to be executed, should be enclosed with quotes
 ```
+
+If you encounter a scenario or option that is not supoprted yet or behaves unexpected, please create an issue and explain the option and the scenario.
