@@ -6,7 +6,7 @@ def sbatch(vargs=None):
         resource_group = os.environ['CI_RESOURCE_GROUP']
         workspace_name = os.environ['CI_WORKSPACE']
     except Exception as error:
-        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
+        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
 
     pwd = os.environ['PWD']
 
@@ -18,6 +18,7 @@ def sbatch(vargs=None):
     import argparse
     import re
 
+    # disable output for experimental classes
     import logging
     logging.getLogger('azure.ai.ml._utils').setLevel(logging.CRITICAL)
 
@@ -40,10 +41,12 @@ def sbatch(vargs=None):
     parser.add_argument('-N', '--nodes', default=1, type=int, help='amount of nodes to use for the job')
     parser.add_argument('-p', '--partition', type=str, required=True,
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
-    parser.add_argument('--parallel', default="single", type=str, help='command line to be executed, should be enclosed with quotes')
+    #parser.add_argument('--parallel', default="single", type=str, help='command line to be executed, should be enclosed with quotes')
+    parser.add_argument('-v', '--verbose', action='count', default=0,  help='provide output on found settings and job properties')
     parser.add_argument('-w', '--wrap', type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
+    args.parallel="single"
 
     job_env = { "SLURM_JOB_NODES": args.nodes }
 
@@ -55,7 +58,12 @@ def sbatch(vargs=None):
         print("Conflict: provide either script to execute as argument or commandline to execute through --wrap option")
         exit(-1)
 
+    if (args.container != "None") and (args.environment != "None"):
+        print("Conflict: provide either container or environment, cannot be used together")
+        exit(-1)
+
     if (args.container != "None"):
+        if (args.verbose): print("using container: " + args.container) 
         env_docker_image = Environment(
                 image=args.container,
                 name="sbatch-container-image",
@@ -63,9 +71,13 @@ def sbatch(vargs=None):
                 )
         ml_client.environments.create_or_update(env_docker_image)
         args.environment = "sbatch-container-image@latest"
+        if (args.verbose): print("created container environment: " + args.environment) 
 
     if (args.environment == "None"):
         args.environment = "amlslurm-ubuntu2004@latest"
+        if (args.verbose): print("using default environment: " + args.environment) 
+
+    if (args.verbose): print("using environment: " + args.environment) 
 
     if (args.script != "None"):
         job_code = pwd + "/" + args.script
@@ -200,9 +212,6 @@ def sbatch(vargs=None):
         print(returned_job.name)
 
     if (args.parallel == "single"):
-        #for index in range(array_list[0], array_list[1], array_list[2]):
-        job_env["SLURM_ARRAY_TASK_ID"] = index
-
         command_job = command(
             code=job_code,
             command=job_command,
