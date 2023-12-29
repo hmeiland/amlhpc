@@ -147,16 +147,20 @@ def sbatch(vargs=None):
         job_code = None
 
     if (args.array != "None"):
+        if (args.verbose): 
+            print("selected array job with: " + args.array) 
         array_list_1=re.split('%', args.array)
         if len(array_list_1) == 2:
             max_nodes=int(array_list_1[1])
-            #print(max_nodes)
+            if (args.verbose): 
+                print("selected max nodes for array job: " + max_nodes) 
         array_list_2=re.split(':', array_list_1[0])
         if len(array_list_2) == 2:
             step=int(array_list_2[1])
         else:
             step=1
-        #print(step)
+        if (args.verbose): 
+            print("selected step for array range: " + step) 
         array_list_3=re.split('-', array_list_2[0])
         array_list_4=re.split(',', array_list_3[0])
         task_index_list = [eval(i) for i in array_list_4]
@@ -169,11 +173,16 @@ def sbatch(vargs=None):
             array_end += 1
             for index in range(array_start, array_end, step):
                 task_index_list.append(index)
+            job_env["SLURM_ARRAY_TASK_STEP"] = step
+        task_index_list.sort()
+        job_env["SLURM_ARRAY_TASK_COUNT"] = len(task_index_list)
+        job_env["SLURM_ARRAY_TASK_MAX"] = task_index_list[-1]
+        job_env["SLURM_ARRAY_TASK_MIN"] = task_index_list[0]
         #print(task_index_list)
         #print(len(task_index_list))
         if len(array_list_1) == 1:
             max_nodes=len(task_index_list)
-        job_env["SLURM_ARRAY_TASK_COUNT"] = len(task_index_list)
+        job_env["SLURM_JOB_NUM_NODES"] = max_nodes
         args.parallel="sweepjob"
     
     if (args.parallel == "sweep"):
