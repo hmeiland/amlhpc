@@ -82,16 +82,28 @@ def sbatch(vargs=None):
     if (args.script != "None"):
         job_code = pwd + "/" + args.script
         job_command = args.script
+        if (args.verbose): 
+            print("provided script to be executed: " + job_code) 
+            print("provided script to be uploaded: " + job_code) 
+            print("initial command (through runscript): " + job_command) 
 
     if (args.wrap is not None):
         job_code = None 
         job_command = args.wrap
+        if (args.verbose): 
+            print("no script to be uploaded.") 
+            print("initial command (through wrapped script): " + job_command) 
 
     if (args.datamover == "simple"):
         job_code = pwd + "/"
+        if (args.verbose): 
+            print("selected datamover: " + args.datamover) 
+            print("provided directory to be uploaded: " + job_code) 
     
     outputs = {}
     if (args.datamover == "datastore"):
+        if (args.verbose): 
+            print("selected datamover: " + args.datamover) 
         # print(pwd)
         data_stores_list = ml_client.datastores.list()
         data_stores_name_list = []
@@ -112,6 +124,8 @@ def sbatch(vargs=None):
         job_command = "cd $AZURE_ML_OUTPUT_JOB_WORKDIR; " + job_command
 
     if (args.datamover == "nfs"):
+        if (args.verbose): 
+            print("selected datamover: " + args.datamover) 
         # print(pwd)
         pwd_list = pwd.split("/")
         while pwd_list:
