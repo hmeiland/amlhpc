@@ -21,16 +21,15 @@ def squeue(vargs=None):
         )
 
     job_list = []
-    list_of_jobs = ml_client.jobs.list()
-    for job in list_of_jobs:
-        job_list.append(job)
     print("JOBID\t\t\t\tNAME\t\tPARTITION\tSTATE\tTIME")
-    for job in job_list:
-        line = job.name
-        if len(line) < 24:
-            line += "\t"
-        line += "\t" + job.display_name
-        if len(line) < 8:
-            line += "\t"
-        line += "\t" + str(job.compute)
-        print(line)
+    for page in ml_client.jobs.list().by_page():
+        for job in page:
+            line = job.name
+            if len(line) < 24:
+                line += "\t"
+            line += "\t" + job.display_name
+            if len(line) < 49:
+                line += "\t"
+            line += "\t" + str(job.compute)
+            print(line)
+        input("Press Enter to continue...")
