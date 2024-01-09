@@ -1,3 +1,17 @@
+class mlComputeAuth:
+    def get_token(scopes="my_scope", claims="my_claim", tenant_id="my_tenant"):
+        import requests
+        import os
+        from azure.core.credentials import AccessToken
+        resource = "https://management.azure.com"
+        client_id = os.environ.get("DEFAULT_IDENTITY_CLIENT_ID", None)
+        resp = requests.get(f"{os.environ['MSI_ENDPOINT']}?resource={resource}&clientid={client_id}&api-version=2017-09-01", headers={'Secret': os.environ["MSI_SECRET"]})
+        resp.raise_for_status()
+        my_token = AccessToken(resp.json()["access_token"], int(resp.json()["expires_on"]))
+
+        return my_token
+
+
 def sbatch(vargs=None):
     import os
 
@@ -7,6 +21,7 @@ def sbatch(vargs=None):
         workspace_name = os.environ['CI_WORKSPACE']
     except Exception as error:
         print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
+        exit(-1)
 
     pwd = os.environ['PWD']
 
@@ -22,8 +37,13 @@ def sbatch(vargs=None):
     import logging
     logging.getLogger('azure.ai.ml._utils').setLevel(logging.CRITICAL)
 
+    try:
+        on_aml = os.environ['APPSETTING_WEBSITE_SITE_NAME']
+        if (on_aml == 'AMLComputeInstance'):
+            credential = mlComputeAuth()
+    except:
+        credential = DefaultAzureCredential()
 
-    credential = DefaultAzureCredential()
     ml_client = MLClient(
         credential=credential,
         subscription_id=subscription_id,
