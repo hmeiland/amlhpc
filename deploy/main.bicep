@@ -29,19 +29,24 @@ param environment string
 ])
 param location string
 
+var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}x'
+
 var tenantId = subscription().tenantId
-var storageAccountName = 'st${name}${environment}'
-var keyVaultName = 'kv-${name}-${environment}'
+var storageAccountName = 'st${name}'
+var keyVaultName = 'kv-${name}'
 var applicationInsightsName = 'appi-${name}-${environment}'
-var containerRegistryName = 'cr${name}${environment}'
+var containerRegistryName = 'cr${name}'
 var workspaceName = 'mlw${name}${environment}'
+var virtualNetworkName = 'vnet-${name}-${environment}'
 var storageAccountId = storageAccount.id
 var keyVaultId = vault.id
 var applicationInsightId = applicationInsight.id
 var containerRegistryId = registry.id
+var virtualNetworkId = virtualNetwork.id
+var subnetClusterId = subnetCluster.id
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
-  name: storageAccountName
+  name: '${storageAccountName}${resourcePostfix}'
   location: location
   sku: {
     name: 'Standard_RAGRS'
@@ -62,14 +67,14 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
     supportsHttpsTrafficOnly: true
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
-    networkAcls: {
-      defaultAction: 'Deny'
-    }
+    // networkAcls: {
+    //   defaultAction: 'Deny'
+    // }
   }
 }
 
 resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
-  name: keyVaultName
+  name: '${keyVaultName}-${resourcePostfix}'
   location: location
   properties: {
     tenantId: tenantId
@@ -95,7 +100,7 @@ resource registry 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = 
   sku: {
     name: 'Standard'
   }
-  name: containerRegistryName
+  name: '${containerRegistryName}${resourcePostfix}'
   location: location
   properties: {
     adminUserEnabled: false
@@ -106,7 +111,7 @@ resource workspace 'Microsoft.MachineLearningServices/workspaces@2022-10-01' = {
   identity: {
     type: 'SystemAssigned'
   }
-  name: workspaceName
+  name: '${workspaceName}-${resourcePostfix}'
   location: location
   properties: {
     friendlyName: workspaceName
@@ -117,33 +122,67 @@ resource workspace 'Microsoft.MachineLearningServices/workspaces@2022-10-01' = {
   }
 }
 
-resource machineLearningCluster001 'Microsoft.MachineLearningServices/workspaces/computes@2022-05-01' = {
-  name: '${workspaceName}/cluster001'
+resource virtualNetwork 'Microsoft.Network/virtualNetworks@2021-05-01' = {
+  name: virtualNetworkName
   location: location
-  tags: tags
+  properties: {
+    addressSpace: {
+      addressPrefixes: [
+        '10.0.0.0/16'
+      ]
+    }
+  }
+}
+
+resource subnetCluster 'Microsoft.Network/virtualNetworks/subnets@2021-08-01' = {
+  parent: virtualNetwork
+  name: 'cluster'
+  properties: {
+      addressPrefix: '10.0.1.0/24'
+  }
+}
+
+resource subnetanf 'Microsoft.Network/virtualNetworks/subnets@2021-08-01' = {
+  parent: virtualNetwork
+  name: 'anf'
+  properties: {
+      addressPrefix: '10.0.2.0/24'
+  }
+}
+
+resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2022-05-01' = {
+  parent: workspace
+  name: 'login-${resourcePostfix}' 
+  location: location
   identity: {
     type: 'SystemAssigned'
   }
   properties: {
-    computeType: 'AmlCompute'
+    computeType: 'ComputeInstance'
     computeLocation: location
-    description: 'Machine Learning cluster 001'
+    description: 'Machine Learning compute instance 001'
     disableLocalAuth: true
     properties: {
-      vmPriority: 'Dedicated'
-      vmSize: vmSizeParam
-      enableNodePublicIp: amlComputePublicIp
-      isolatedNetwork: false
-      osType: 'Linux'
-      remoteLoginPortPublicAccess: 'Disabled'
-      scaleSettings: {
-        minNodeCount: 0
-        maxNodeCount: 5
-        nodeIdleTimeBeforeScaleDown: 'PT120S'
+      applicationSharingPolicy: 'Personal'
+      
+      computeInstanceAuthorizationType: 'personal'
+      sshSettings: {
+        sshPublicAccess: 'Disabled'
       }
       subnet: {
-        id: computeSubnetId
+        id: subnetClusterId
       }
+      vmSize: 'Standard_F2s_v2'
     }
+  }
+}
+
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: resourceGroup()
+  name: guid(amlLoginVM.name, resourcePostfix)
+  properties: {
+    roleDefinitionId: resourceId('microsoft.authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+    principalId: amlLoginVM.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
