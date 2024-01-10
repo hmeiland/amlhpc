@@ -18,13 +18,11 @@ total 4.7M
 Now create a small runscript to mount the EESSI stack, load Gromacs and run the job:
 ```
 #!/bin/bash
-mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org
+sudo mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org
 source /cvmfs/pilot.eessi-hpc.org/latest/init/bash
 ml load GROMACS
 
 export OMP_NUM_THREADS=12
-export OMPI_ALLOW_RUN_AS_ROOT=1
-export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 mpirun -np 8 gmx_mpi mdrun \
     -s ion_channel.tpr \
@@ -57,13 +55,11 @@ The next step is to run Gromacs over multiple nodes using MPI and the InfiniBand
 To do this, the runscript-2N.sh needs to be teaked to prepare the nodes and provide mpirun with the right variables:
 ```
 #!/bin/bash
-parallel-ssh -i -H "${AZ_BATCH_HOST_LIST//,/ }" "mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org"
+parallel-ssh -i -H "${AZ_BATCH_HOST_LIST//,/ }" "sudo mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org"
 source /cvmfs/pilot.eessi-hpc.org/versions/2023.06/init/bash
 
 ml load GROMACS
 export OMP_NUM_THREADS=14
-export OMPI_ALLOW_RUN_AS_ROOT=1
-export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 for i in ${AZ_BATCH_HOST_LIST//,/ }
 do
