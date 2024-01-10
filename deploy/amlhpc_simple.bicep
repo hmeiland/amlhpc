@@ -1,9 +1,6 @@
 @description('Specifies the name of the deployment.')
 param name string
 
-@description('Specifies the name of the environment.')
-param environment string
-
 @description('Specifies the location of the Azure Machine Learning workspace and dependent resources.')
 @allowed([
   'australiaeast'
@@ -29,20 +26,19 @@ param environment string
 ])
 param location string
 
-var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}x'
+var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}y'
 
 var tenantId = subscription().tenantId
 var storageAccountName = 'st${name}'
 var keyVaultName = 'kv-${name}'
-var applicationInsightsName = 'appi-${name}-${environment}'
+var applicationInsightsName = 'appi-${name}'
 var containerRegistryName = 'cr${name}'
-var workspaceName = 'mlw${name}${environment}'
-var virtualNetworkName = 'vnet-${name}-${environment}'
+var workspaceName = 'mlw${name}'
+var virtualNetworkName = 'vnet-${name}'
 var storageAccountId = storageAccount.id
 var keyVaultId = vault.id
 var applicationInsightId = applicationInsight.id
 var containerRegistryId = registry.id
-var virtualNetworkId = virtualNetwork.id
 var subnetClusterId = subnetCluster.id
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
@@ -67,9 +63,6 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
     supportsHttpsTrafficOnly: true
     minimumTlsVersion: 'TLS1_2'
     allowBlobPublicAccess: false
-    // networkAcls: {
-    //   defaultAction: 'Deny'
-    // }
   }
 }
 
@@ -107,7 +100,7 @@ resource registry 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = 
   }
 }
 
-resource workspace 'Microsoft.MachineLearningServices/workspaces@2022-10-01' = {
+resource workspace 'Microsoft.MachineLearningServices/workspaces@2023-06-01-preview' = {
   identity: {
     type: 'SystemAssigned'
   }
@@ -150,7 +143,7 @@ resource subnetanf 'Microsoft.Network/virtualNetworks/subnets@2021-08-01' = {
   }
 }
 
-resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2022-05-01' = {
+resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-06-01-preview' = {
   parent: workspace
   name: 'login-${resourcePostfix}' 
   location: location
@@ -160,7 +153,7 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2022-
   properties: {
     computeType: 'ComputeInstance'
     computeLocation: location
-    description: 'Machine Learning compute instance 001'
+    description: 'Login vm'
     disableLocalAuth: true
     properties: {
       applicationSharingPolicy: 'Personal'
@@ -173,6 +166,48 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2022-
         id: subnetClusterId
       }
       vmSize: 'Standard_F2s_v2'
+      setupScripts: {
+        scripts: {
+          creationScript: {
+	    scriptSource : 'inline'
+	    scriptData: base64('pip install amlhpc; echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh;')
+          }
+          startupScript: {
+	    scriptSource : 'inline'
+	    scriptData: base64('echo `date` > /startup.txt')
+          }
+        }
+      }
+    }
+  }
+}
+
+resource smallcluster 'Microsoft.MachineLearningServices/workspaces/computes@2023-06-01-preview' = {
+  parent: workspace
+  name: 'f2s'
+  location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    computeType: 'AmlCompute'
+    computeLocation: location
+    disableLocalAuth: true
+    properties: {
+      vmPriority: 'Dedicated'
+      vmSize: 'Standard_F2s_v2' 
+      //enableNodePublicIp: amlComputePublicIp
+      isolatedNetwork: false
+      osType: 'Linux'
+      remoteLoginPortPublicAccess: 'Disabled'
+      scaleSettings: {
+        minNodeCount: 0
+        maxNodeCount: 5
+        nodeIdleTimeBeforeScaleDown: 'PT120S'
+      }
+      subnet: {
+        id: subnetClusterId
+      }
     }
   }
 }
@@ -186,3 +221,16 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
     principalType: 'ServicePrincipal'
   }
 }
+
+resource ml_cust_env 'Microsoft.MachineLearningServices/workspaces/environments/versions@2023-06-01-preview' = {  
+  name: '${workspace.name}/amlhpc-ubuntu2004/1'  
+  properties: {  
+    osType: 'Linux'
+    image: 'docker.io/hmeiland/amlhpc-ubuntu2004'
+    autoRebuild: 'OnBaseImageUpdate'
+    //build: {
+      //contextUri: 'https://github.com/hmeiland/amlhpc.git#main'
+      //dockerfilePath: 'environments/amlslurm-ubuntu2004/Dockerfile'
+    //}
+  }  
+}  
