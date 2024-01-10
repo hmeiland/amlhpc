@@ -20,6 +20,7 @@ def sinfo(vargs=None):
         workspace_name = os.environ['CI_WORKSPACE']
     except Exception as error:
         print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
+        exit(-1)
 
     from azure.ai.ml import MLClient
     from azure.identity import DefaultAzureCredential

@@ -94,7 +94,7 @@ def sbatch(vargs=None):
         if (args.verbose): print("created container environment: " + args.environment) 
 
     if (args.environment == "None"):
-        args.environment = "amlslurm-ubuntu2004@latest"
+        args.environment = "amlhpc-ubuntu2004@latest"
         if (args.verbose): print("using default environment: " + args.environment) 
 
     if (args.verbose): print("using environment: " + args.environment) 
