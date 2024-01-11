@@ -26,12 +26,10 @@ The runscript.sh is still pretty simple:
 #!/bin/bash
 
 echo "I'm running..."
-mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org
+sudo mount -t cvmfs pilot.eessi-hpc.org /cvmfs/pilot.eessi-hpc.org
 source /cvmfs/pilot.eessi-hpc.org/latest/init/bash
 ml load QuantumESPRESSO 
 export OMP_NUM_THREADS=4
-export OMPI_ALLOW_RUN_AS_ROOT=1
-export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 mpirun -n 30 pw.x -npool 2 -input ausurf.in 
 ```
