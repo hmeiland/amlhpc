@@ -1,30 +1,7 @@
 @description('Specifies the name of the deployment.')
 param name string
 
-//@description('Specifies the location of the Azure Machine Learning workspace and dependent resources.')
-//@allowed([
-//  'australiaeast'
-//  'brazilsouth'
-//  'canadacentral'
-//  'centralus'
-//  'eastasia'
-//  'eastus'
-//  'eastus2'
-//  'francecentral'
-//  'japaneast'
-//  'koreacentral'
-//  'northcentralus'
-//  'northeurope'
-//  'southeastasia'
-//  'southcentralus'
-//  'uksouth'
-//  'westcentralus'
-//  'westus'
-//  'westus2'
-//  'westeurope'
-//  'usgovvirginia'
-//])
-param location string = resourceGroup().location
+var location = resourceGroup().location
 
 var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}y'
 
@@ -228,9 +205,5 @@ resource ml_cust_env 'Microsoft.MachineLearningServices/workspaces/environments/
     osType: 'Linux'
     image: 'docker.io/hmeiland/amlhpc-ubuntu2004'
     autoRebuild: 'OnBaseImageUpdate'
-    //build: {
-      //contextUri: 'https://github.com/hmeiland/amlhpc.git#main'
-      //dockerfilePath: 'environments/amlslurm-ubuntu2004/Dockerfile'
-    //}
   }  
 }  
