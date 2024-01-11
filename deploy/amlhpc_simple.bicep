@@ -1,30 +1,30 @@
 @description('Specifies the name of the deployment.')
 param name string
 
-@description('Specifies the location of the Azure Machine Learning workspace and dependent resources.')
-@allowed([
-  'australiaeast'
-  'brazilsouth'
-  'canadacentral'
-  'centralus'
-  'eastasia'
-  'eastus'
-  'eastus2'
-  'francecentral'
-  'japaneast'
-  'koreacentral'
-  'northcentralus'
-  'northeurope'
-  'southeastasia'
-  'southcentralus'
-  'uksouth'
-  'westcentralus'
-  'westus'
-  'westus2'
-  'westeurope'
-  'usgovvirginia'
-])
-param location string
+//@description('Specifies the location of the Azure Machine Learning workspace and dependent resources.')
+//@allowed([
+//  'australiaeast'
+//  'brazilsouth'
+//  'canadacentral'
+//  'centralus'
+//  'eastasia'
+//  'eastus'
+//  'eastus2'
+//  'francecentral'
+//  'japaneast'
+//  'koreacentral'
+//  'northcentralus'
+//  'northeurope'
+//  'southeastasia'
+//  'southcentralus'
+//  'uksouth'
+//  'westcentralus'
+//  'westus'
+//  'westus2'
+//  'westeurope'
+//  'usgovvirginia'
+//])
+param location string = resourceGroup().location
 
 var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}y'
 
