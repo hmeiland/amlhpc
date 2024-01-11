@@ -66,4 +66,4 @@ optional arguments:
   -w WRAP, --wrap WRAP  command line to be executed, should be enclosed with quotes
 ```
 
-If you encounter a scenario or option that is not supoprted yet or behaves unexpected, please create an issue and explain the option and the scenario.
+If you encounter a scenario or option that is not supported yet or behaves unexpected, please create an issue and explain the option and the scenario.
