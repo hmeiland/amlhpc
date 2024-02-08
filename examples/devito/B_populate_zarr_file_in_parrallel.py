@@ -20,8 +20,8 @@ print('libraries loaded ')
 ##########################################################################
 # parameters
 #ZARR blob account - testing
-AZURE_STORAGE_ACCOUNT_NAME="hugoblobtest12345"
-AZURE_STORAGE_ACCESS_KEY="648X7ZKv2sdPFWbzUoBRWiu8igckisHM2mEYZtHD2zj/iBMWIhf8dGa4MQnAhbwu/peI9KB51HZd+ASt+Id1Iw=="
+AZURE_STORAGE_ACCOUNT_NAME="blobtest12345"
+AZURE_STORAGE_ACCESS_KEY="xxxx"
 container_name="seismic"
 
 backend='zarr_blob'
