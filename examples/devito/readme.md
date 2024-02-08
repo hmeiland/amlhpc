@@ -1,4 +1,4 @@
-Readme in here add in
+
 These repo contains various scripts which run
 A) generate large multi-dimensional cubes on blob for seismic data
 B) populate these files with synthetic gathers
