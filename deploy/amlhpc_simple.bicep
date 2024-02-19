@@ -127,7 +127,7 @@ echo "export SUBSCRIPTION=
 '''
 
 var setupscript_2 = concat(setupscript_1, subscription().subscriptionId)
-var setupscript = concat(setupscript_2, ' > /etc/profile.d/amlhpc.sh')
+var setupscript = concat(setupscript_2, '" > /etc/profile.d/amlhpc.sh')
 
 resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-06-01-preview' = {
   parent: workspace
