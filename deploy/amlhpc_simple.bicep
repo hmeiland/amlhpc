@@ -19,7 +19,7 @@ var containerRegistryId = registry.id
 var subnetClusterId = subnetCluster.id
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
-  name: '${storageAccountName}'
+  name: storageAccountName
   location: location
   sku: {
     name: 'Standard_RAGRS'
@@ -44,7 +44,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
 }
 
 resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
-  name: '${keyVaultName}'
+  name: keyVaultName
   location: location
   properties: {
     tenantId: tenantId
@@ -70,7 +70,7 @@ resource registry 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = 
   sku: {
     name: 'Standard'
   }
-  name: '${containerRegistryName}'
+  name: containerRegistryName
   location: location
   properties: {
     adminUserEnabled: false
@@ -81,7 +81,7 @@ resource workspace 'Microsoft.MachineLearningServices/workspaces@2023-06-01-prev
   identity: {
     type: 'SystemAssigned'
   }
-  name: '${workspaceName}'
+  name: workspaceName
   location: location
   properties: {
     friendlyName: workspaceName
@@ -147,7 +147,10 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-
         scripts: {
           creationScript: {
 	    scriptSource : 'inline'
-	    scriptData: base64('pip install amlhpc; echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh;')
+	    scriptData: base64('''
+pip install amlhpc 
+echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh
+''')
           }
           startupScript: {
 	    scriptSource : 'inline'

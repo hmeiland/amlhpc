@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.24.24.22086",
-      "templateHash": "15479895345451507432"
+      "templateHash": "3905114379493833843"
     }
   },
   "parameters": {
@@ -26,17 +26,17 @@
     "containerRegistryName": "[substring(format('cr{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "workspaceName": "[substring(format('ml{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "virtualNetworkName": "[substring(format('vn{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
-    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', format('{0}', variables('storageAccountName')))]",
-    "keyVaultId": "[resourceId('Microsoft.KeyVault/vaults', format('{0}', variables('keyVaultName')))]",
+    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+    "keyVaultId": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
     "applicationInsightId": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
-    "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', format('{0}', variables('containerRegistryName')))]",
+    "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
     "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]"
   },
   "resources": [
     {
       "type": "Microsoft.Storage/storageAccounts",
       "apiVersion": "2022-05-01",
-      "name": "[format('{0}', variables('storageAccountName'))]",
+      "name": "[variables('storageAccountName')]",
       "location": "[variables('location')]",
       "sku": {
         "name": "Standard_RAGRS"
@@ -62,7 +62,7 @@
     {
       "type": "Microsoft.KeyVault/vaults",
       "apiVersion": "2022-07-01",
-      "name": "[format('{0}', variables('keyVaultName'))]",
+      "name": "[variables('keyVaultName')]",
       "location": "[variables('location')]",
       "properties": {
         "tenantId": "[variables('tenantId')]",
@@ -87,7 +87,7 @@
     {
       "type": "Microsoft.ContainerRegistry/registries",
       "apiVersion": "2022-02-01-preview",
-      "name": "[format('{0}', variables('containerRegistryName'))]",
+      "name": "[variables('containerRegistryName')]",
       "sku": {
         "name": "Standard"
       },
@@ -99,7 +99,7 @@
     {
       "type": "Microsoft.MachineLearningServices/workspaces",
       "apiVersion": "2023-06-01-preview",
-      "name": "[format('{0}', variables('workspaceName'))]",
+      "name": "[variables('workspaceName')]",
       "identity": {
         "type": "SystemAssigned"
       },
@@ -113,9 +113,9 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
-        "[resourceId('Microsoft.ContainerRegistry/registries', format('{0}', variables('containerRegistryName')))]",
-        "[resourceId('Microsoft.Storage/storageAccounts', format('{0}', variables('storageAccountName')))]",
-        "[resourceId('Microsoft.KeyVault/vaults', format('{0}', variables('keyVaultName')))]"
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
       ]
     },
     {
@@ -156,7 +156,7 @@
     {
       "type": "Microsoft.MachineLearningServices/workspaces/computes",
       "apiVersion": "2023-06-01-preview",
-      "name": "[format('{0}/{1}', format('{0}', variables('workspaceName')), format('login-{0}', variables('resourcePostfix')))]",
+      "name": "[format('{0}/{1}', variables('workspaceName'), format('login-{0}', variables('resourcePostfix')))]",
       "location": "[variables('location')]",
       "identity": {
         "type": "SystemAssigned"
@@ -180,7 +180,7 @@
             "scripts": {
               "creationScript": {
                 "scriptSource": "inline",
-                "scriptData": "[base64(format('pip install amlhpc; echo \"export SUBSCRIPTION={0}\" > /etc/profile.d/amlhpc.sh;', subscription().subscriptionId))]"
+                "scriptData": "[base64('pip install amlhpc \necho \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\n')]"
               },
               "startupScript": {
                 "scriptSource": "inline",
@@ -192,13 +192,13 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
-        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('{0}', variables('workspaceName')))]"
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
       ]
     },
     {
       "type": "Microsoft.MachineLearningServices/workspaces/computes",
       "apiVersion": "2023-06-01-preview",
-      "name": "[format('{0}/{1}', format('{0}', variables('workspaceName')), 'f4s')]",
+      "name": "[format('{0}/{1}', variables('workspaceName'), 'f4s')]",
       "location": "[variables('location')]",
       "identity": {
         "type": "SystemAssigned"
@@ -225,7 +225,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
-        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('{0}', variables('workspaceName')))]"
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
       ]
     },
     {
@@ -234,24 +234,24 @@
       "name": "[guid(format('login-{0}', variables('resourcePostfix')), variables('resourcePostfix'))]",
       "properties": {
         "roleDefinitionId": "[resourceId('microsoft.authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
-        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces/computes', format('{0}', variables('workspaceName')), format('login-{0}', variables('resourcePostfix'))), '2023-06-01-preview', 'full').identity.principalId]",
+        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces/computes', variables('workspaceName'), format('login-{0}', variables('resourcePostfix'))), '2023-06-01-preview', 'full').identity.principalId]",
         "principalType": "ServicePrincipal"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.MachineLearningServices/workspaces/computes', format('{0}', variables('workspaceName')), format('login-{0}', variables('resourcePostfix')))]"
+        "[resourceId('Microsoft.MachineLearningServices/workspaces/computes', variables('workspaceName'), format('login-{0}', variables('resourcePostfix')))]"
       ]
     },
     {
       "type": "Microsoft.MachineLearningServices/workspaces/environments/versions",
       "apiVersion": "2023-06-01-preview",
-      "name": "[format('{0}/amlhpc-ubuntu2004/1', format('{0}', variables('workspaceName')))]",
+      "name": "[format('{0}/amlhpc-ubuntu2004/1', variables('workspaceName'))]",
       "properties": {
         "osType": "Linux",
         "image": "docker.io/hmeiland/amlhpc-ubuntu2004",
         "autoRebuild": "OnBaseImageUpdate"
       },
       "dependsOn": [
-        "[resourceId('Microsoft.MachineLearningServices/workspaces', format('{0}', variables('workspaceName')))]"
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
       ]
     }
   ]
