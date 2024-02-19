@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.24.24.22086",
-      "templateHash": "3905114379493833843"
+      "templateHash": "4455719693739351355"
     }
   },
   "parameters": {
@@ -175,12 +175,22 @@
           "subnet": {
             "id": "[variables('subnetClusterId')]"
           },
+          "customServices": [
+            {
+              "environmentVariables": {
+                "test_variable": {
+                  "type": "local",
+                  "value": "12345"
+                }
+              }
+            }
+          ],
           "vmSize": "Standard_F2s_v2",
           "setupScripts": {
             "scripts": {
               "creationScript": {
                 "scriptSource": "inline",
-                "scriptData": "[base64('pip install amlhpc \necho \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\n')]"
+                "scriptData": "[base64('pip install amlhpc \n#echo \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\necho \"export SUBSCRIPTION=$test_variable\" > /etc/profile.d/amlhpc.sh\n')]"
               },
               "startupScript": {
                 "scriptSource": "inline",

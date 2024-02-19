@@ -142,6 +142,14 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-
       subnet: {
         id: subnetClusterId
       }
+      customServices: [{
+        environmentVariables: {
+          test_variable: {
+            type: 'local'
+            value: '12345'
+          }
+        }
+      }] 
       vmSize: 'Standard_F2s_v2'
       setupScripts: {
         scripts: {
@@ -149,7 +157,8 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-
 	    scriptSource : 'inline'
 	    scriptData: base64('''
 pip install amlhpc 
-echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh
+#echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh
+echo "export SUBSCRIPTION=$test_variable" > /etc/profile.d/amlhpc.sh
 ''')
           }
           startupScript: {
