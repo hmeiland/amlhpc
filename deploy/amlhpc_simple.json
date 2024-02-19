@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.24.24.22086",
-      "templateHash": "5843850370279125126"
+      "templateHash": "1201384740295974037"
     }
   },
   "parameters": {
@@ -31,7 +31,7 @@
     "applicationInsightId": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
     "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
     "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
-    "setupscript_1": "pip install amlhpc \n#echo \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\necho \"export SUBSCRIPTION=",
+    "setupscript_1": "pip install amlhpc \nwget --no-check-certificate https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb\napt-get update && apt-get install -y cvmfs\nwget https://github.com/EESSI/filesystem-layer/releases/download/v0.5.0/cvmfs-config-eessi_0.5.0_all.deb && dpkg -i cvmfs-config-eessi_0.5.0_all.deb\necho 'CVMFS_CLIENT_PROFILE=\"single\"' > /etc/cvmfs/default.local\necho 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local\necho 'CVMFS_REPOSITORIES=cms.cern.ch,pilot.eessi-hpc.org,software.eessi.io' >> /etc/cvmfs/default.local\necho 'CVMFS_HTTP_PROXY=DIRECT' >> /etc/cvmfs/default.local\ncvmfs_config setup; mkdir -p /cvmfs/pilot.eessi-hpc.org /cvmfs/software.eessi.io\necho \"export SUBSCRIPTION=",
     "setupscript_2": "[concat(variables('setupscript_1'), subscription().subscriptionId)]",
     "setupscript": "[concat(variables('setupscript_2'), '\" > /etc/profile.d/amlhpc.sh')]"
   },
