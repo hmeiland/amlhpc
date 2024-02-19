@@ -3,15 +3,15 @@ param name string
 
 var location = resourceGroup().location
 
-var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}y'
+var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}z'
 
 var tenantId = subscription().tenantId
-var storageAccountName = 'st${name}'
-var keyVaultName = 'kv-${name}'
-var applicationInsightsName = 'appi-${name}'
-var containerRegistryName = 'cr${name}'
-var workspaceName = 'mlw${name}'
-var virtualNetworkName = 'vnet-${name}'
+var storageAccountName = substring('st${name}${resourcePostfix}',0,20)
+var keyVaultName = substring('kv${name}${resourcePostfix}',0,20)
+var applicationInsightsName = substring('ai${name}${resourcePostfix}',0,20)
+var containerRegistryName = substring('cr${name}${resourcePostfix}',0,20)
+var workspaceName = substring('ml${name}${resourcePostfix}',0,20)
+var virtualNetworkName = substring('vn${name}${resourcePostfix}',0,20)
 var storageAccountId = storageAccount.id
 var keyVaultId = vault.id
 var applicationInsightId = applicationInsight.id
@@ -19,7 +19,7 @@ var containerRegistryId = registry.id
 var subnetClusterId = subnetCluster.id
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
-  name: '${storageAccountName}${resourcePostfix}'
+  name: '${storageAccountName}'
   location: location
   sku: {
     name: 'Standard_RAGRS'
@@ -44,7 +44,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
 }
 
 resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
-  name: '${keyVaultName}-${resourcePostfix}'
+  name: '${keyVaultName}'
   location: location
   properties: {
     tenantId: tenantId
@@ -70,7 +70,7 @@ resource registry 'Microsoft.ContainerRegistry/registries@2022-02-01-preview' = 
   sku: {
     name: 'Standard'
   }
-  name: '${containerRegistryName}${resourcePostfix}'
+  name: '${containerRegistryName}'
   location: location
   properties: {
     adminUserEnabled: false
@@ -81,7 +81,7 @@ resource workspace 'Microsoft.MachineLearningServices/workspaces@2023-06-01-prev
   identity: {
     type: 'SystemAssigned'
   }
-  name: '${workspaceName}-${resourcePostfix}'
+  name: '${workspaceName}'
   location: location
   properties: {
     friendlyName: workspaceName
@@ -161,7 +161,7 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-
 
 resource smallcluster 'Microsoft.MachineLearningServices/workspaces/computes@2023-06-01-preview' = {
   parent: workspace
-  name: 'f2s'
+  name: 'f4s'
   location: location
   identity: {
     type: 'SystemAssigned'
@@ -172,7 +172,7 @@ resource smallcluster 'Microsoft.MachineLearningServices/workspaces/computes@202
     disableLocalAuth: true
     properties: {
       vmPriority: 'Dedicated'
-      vmSize: 'Standard_F2s_v2' 
+      vmSize: 'Standard_F4s_v2' 
       //enableNodePublicIp: amlComputePublicIp
       isolatedNetwork: false
       osType: 'Linux'
