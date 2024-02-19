@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.24.24.22086",
-      "templateHash": "4455719693739351355"
+      "templateHash": "7123645993392324437"
     }
   },
   "parameters": {
@@ -30,7 +30,10 @@
     "keyVaultId": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
     "applicationInsightId": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
     "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
-    "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]"
+    "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
+    "setupscript_1": "pip install amlhpc \n#echo \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\necho \"export SUBSCRIPTION=\n",
+    "setupscript_2": "[concat(variables('setupscript_1'), subscription().subscriptionId)]",
+    "setupscript": "[concat(variables('setupscript_2'), ' > /etc/profile.d/amlhpc.sh')]"
   },
   "resources": [
     {
@@ -175,22 +178,12 @@
           "subnet": {
             "id": "[variables('subnetClusterId')]"
           },
-          "customServices": [
-            {
-              "environmentVariables": {
-                "test_variable": {
-                  "type": "local",
-                  "value": "12345"
-                }
-              }
-            }
-          ],
           "vmSize": "Standard_F2s_v2",
           "setupScripts": {
             "scripts": {
               "creationScript": {
                 "scriptSource": "inline",
-                "scriptData": "[base64('pip install amlhpc \n#echo \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\necho \"export SUBSCRIPTION=$test_variable\" > /etc/profile.d/amlhpc.sh\n')]"
+                "scriptData": "[base64(variables('setupscript'))]"
               },
               "startupScript": {
                 "scriptSource": "inline",

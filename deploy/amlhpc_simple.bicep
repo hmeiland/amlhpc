@@ -120,6 +120,15 @@ resource subnetanf 'Microsoft.Network/virtualNetworks/subnets@2021-08-01' = {
   }
 }
 
+var setupscript_1 = '''
+pip install amlhpc 
+#echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh
+echo "export SUBSCRIPTION=
+'''
+
+var setupscript_2 = concat(setupscript_1, subscription().subscriptionId)
+var setupscript = concat(setupscript_2, ' > /etc/profile.d/amlhpc.sh')
+
 resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-06-01-preview' = {
   parent: workspace
   name: 'login-${resourcePostfix}' 
@@ -142,24 +151,12 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-
       subnet: {
         id: subnetClusterId
       }
-      customServices: [{
-        environmentVariables: {
-          test_variable: {
-            type: 'local'
-            value: '12345'
-          }
-        }
-      }] 
       vmSize: 'Standard_F2s_v2'
       setupScripts: {
         scripts: {
           creationScript: {
 	    scriptSource : 'inline'
-	    scriptData: base64('''
-pip install amlhpc 
-#echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh
-echo "export SUBSCRIPTION=$test_variable" > /etc/profile.d/amlhpc.sh
-''')
+	    scriptData: base64(setupscript)
           }
           startupScript: {
 	    scriptSource : 'inline'
