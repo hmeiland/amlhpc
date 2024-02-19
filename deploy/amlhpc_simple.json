@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.24.24.22086",
-      "templateHash": "5692508469912961211"
+      "templateHash": "5843850370279125126"
     }
   },
   "parameters": {
@@ -31,7 +31,7 @@
     "applicationInsightId": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
     "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
     "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
-    "setupscript_1": "pip install amlhpc \n#echo \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\necho \"export SUBSCRIPTION=\n",
+    "setupscript_1": "pip install amlhpc \n#echo \"export SUBSCRIPTION=${subscription().subscriptionId}\" > /etc/profile.d/amlhpc.sh\necho \"export SUBSCRIPTION=",
     "setupscript_2": "[concat(variables('setupscript_1'), subscription().subscriptionId)]",
     "setupscript": "[concat(variables('setupscript_2'), '\" > /etc/profile.d/amlhpc.sh')]"
   },

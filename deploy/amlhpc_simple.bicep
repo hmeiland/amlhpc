@@ -123,8 +123,7 @@ resource subnetanf 'Microsoft.Network/virtualNetworks/subnets@2021-08-01' = {
 var setupscript_1 = '''
 pip install amlhpc 
 #echo "export SUBSCRIPTION=${subscription().subscriptionId}" > /etc/profile.d/amlhpc.sh
-echo "export SUBSCRIPTION=
-'''
+echo "export SUBSCRIPTION='''
 
 var setupscript_2 = concat(setupscript_1, subscription().subscriptionId)
 var setupscript = concat(setupscript_2, '" > /etc/profile.d/amlhpc.sh')
