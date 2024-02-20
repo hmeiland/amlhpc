@@ -10,6 +10,9 @@ source /cvmfs/software.eessi.io/versions/2023.06/init/bash
 ml load OpenFOAM
 source $FOAM_BASH
 
+mkdir outputs
+cd outputs
+
 # Brute force copy, since this comes from a read-only, non-owned filesystem 
 sudo cp -r $FOAM_TUTORIALS/incompressibleFluid/motorBike .
 sudo chown -R `id -u`:`id -g` motorBike
