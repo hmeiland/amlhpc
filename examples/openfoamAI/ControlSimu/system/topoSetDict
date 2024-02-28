@@ -1,0 +1,42 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     | Website:  https://openfoam.org
+    \\  /    A nd           | Version:  10
+     \\/     M anipulation  |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    object      topoSetDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+actions
+(
+  
+  //////////////////////////////////////////////////////
+    //turbine1
+    {
+        name        turbinecell1;
+        type        cellSet;
+        action      new;
+        source      cylinderToCell;
+        point1      (700  100 topo1);
+        point2      (705  100 topo1);
+        radius      35;
+    }
+    {
+        name    turbine1;
+        type    cellZoneSet;
+        action  new;
+        source  setToCellZone;
+        set     turbinecell1;
+    }
+
+
+);
+
+// ************************************************************************* //
