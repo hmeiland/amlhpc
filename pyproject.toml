@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "amlhpc"
-version = "0.2"
+version = "0.2.1"
 authors = [ "Hugo Meiland <hugo.meiland@microsoft.com>", "Utkarsh Ayachit <uayachit@microsoft.com>" ]
 description = "Emulate Slurm/PBS/LSF HPC scheduler in Azure ML"
 readme = "README.md"
