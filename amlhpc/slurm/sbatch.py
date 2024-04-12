@@ -59,7 +59,7 @@ def sbatch(vargs=None):
     parser.add_argument('--datamover', default="None", type=str, help='use "simple" for moving the (recursive) data along with the runscript')
     parser.add_argument('-e', '--environment', default="None", type=str, help='Azure Machine Learning environment, should be enclosed in quotes, may use @latest')
     parser.add_argument('-N', '--nodes', default=1, type=int, help='amount of nodes to use for the job')
-    parser.add_argument('-p', '--partition', type=str, required=True,
+    parser.add_argument('-p', '--partition', default="None", type=str, 
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
     #parser.add_argument('--parallel', default="single", type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('-v', '--verbose', action='count', default=0,  help='provide output on found settings and job properties')
@@ -76,6 +76,19 @@ def sbatch(vargs=None):
 
     if (args.script != "None") and (args.wrap is not None):
         print("Conflict: provide either script to execute as argument or commandline to execute through --wrap option")
+        exit(-1)
+
+    if (args.script != "None"):
+        f = open(args.script, "r")
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith('#SBATCH -p ') or line.startswith('#SBATCH --partition '):
+                words = list(line.split(" "))
+                args.partition = words[2] 
+                if (args.verbose): print("partition argument from runscript: " + args.partition) 
+
+    if (args.partition == "None"):
+        print("Missing: provide partition to run the job, either as -p argument or as configuration in runscript")
         exit(-1)
 
     if (args.container != "None") and (args.environment != "None"):
