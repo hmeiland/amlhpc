@@ -1,0 +1,7 @@
+#!/bin/bash
+
+conda init
+source activate base
+pip install dask==2023.2.0 distributed==2023.2.0 
+export PATH=$PATH:/home/azureuser/.local/bin
+dask worker tcp://10.0.1.5:12345
