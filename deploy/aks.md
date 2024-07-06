@@ -1,0 +1,14 @@
+Azure Machine learning can use e few compute back-ends. While AMLHPC typically uses the Batch based Compute clusters, the downside of this is the requirement for AML specific quota. Another option is to use Kubernetes clusters, for which AKS is also a valid target. Here you can use your normal subscription quota.
+
+Here is a quick guide for setting up a small AKS cluster and connecting it to Azure Machine Learning:
+```
+# create resource group
+az group create --name demo-aks --location westeurope
+
+# create AKS, with managed identity and specific VM type 
+az aks create -g demo-aks -n aml-aks --enable-managed-identity -s Standard_D16as_v5
+
+# install the AML extension to allow AML to use the AKS cluster
+az k8s-extension create --name amlaksext --extension-type Microsoft.AzureML.Kubernetes --config enableTraining=True enableInference=True inferenceRouterServiceType=LoadBalancer allowInsecureConnections=True InferenceRouterHA=False --cluster-type managedClusters --cluster-name aml-aks --resource-group demo-aks --scope cluster
+```
+
