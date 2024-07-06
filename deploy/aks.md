@@ -22,5 +22,5 @@ sbatch -p aks --wrap="hostname"
 
 There are still a few thinks to figure out:
 
--- job scripts give the error `/bin/bash: ./runscript.sh: Permission denied`
--- unable to mount cvmfs, there needs to be a csi driver on Kubernetes
+- job scripts give the error `/bin/bash: ./runscript.sh: Permission denied`
+- unable to mount cvmfs, there needs to be a csi driver on Kubernetes
