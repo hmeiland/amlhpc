@@ -12,3 +12,9 @@ az aks create -g demo-aks -n aml-aks --enable-managed-identity -s Standard_D16as
 az k8s-extension create --name amlaksext --extension-type Microsoft.AzureML.Kubernetes --config enableTraining=True enableInference=True inferenceRouterServiceType=LoadBalancer allowInsecureConnections=True InferenceRouterHA=False --cluster-type managedClusters --cluster-name aml-aks --resource-group demo-aks --scope cluster
 ```
 
+Once the AKS is created, you can attach it to AML. To do this, go to the Kubernetes Clusters tab in Compute; press new and select Kubernetes. Provide a name that will be used as the partition name and select the AKS from the drop-down list.
+
+From here on you can submit a job from the command line e.g.:
+```
+sbatch -p aks --wrap="hostname"
+```
