@@ -113,8 +113,9 @@ def sbatch(vargs=None):
     if (args.verbose): print("using environment: " + args.environment) 
 
     if (args.script != "None"):
+        start_command = "chmod +x " + args.script + "; "
         job_code = pwd + "/" + args.script
-        job_command = args.script
+        job_command = start_command + args.script
         if (args.verbose): 
             print("provided script to be executed: " + job_code) 
             print("provided script to be uploaded: " + job_code) 
