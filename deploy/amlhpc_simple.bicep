@@ -9,6 +9,7 @@ var tenantId = subscription().tenantId
 var storageAccountName = substring('st${name}${resourcePostfix}',0,20)
 var keyVaultName = substring('kv${name}${resourcePostfix}',0,20)
 var applicationInsightsName = substring('ai${name}${resourcePostfix}',0,20)
+var logAnalyticsName = substring('la${name}${resourcePostfix}',0,20)
 var containerRegistryName = substring('cr${name}${resourcePostfix}',0,20)
 var workspaceName = substring('ml${name}${resourcePostfix}',0,20)
 var virtualNetworkName = substring('vn${name}${resourcePostfix}',0,20)
@@ -57,12 +58,27 @@ resource vault 'Microsoft.KeyVault/vaults@2022-07-01' = {
   }
 }
 
+resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2021-12-01-preview' = {
+  name: logAnalyticsName
+  location: location
+  properties: {
+    sku: {
+      name: 'PerGB2018'
+    }
+    retentionInDays: 90
+    workspaceCapping: {
+      dailyQuotaGb: '0.023'
+    }
+  }
+}
+
 resource applicationInsight 'Microsoft.Insights/components@2020-02-02' = {
   name: applicationInsightsName
   location: location
   kind: 'web'
   properties: {
     Application_Type: 'web'
+    WorkspaceResourceId: logAnalyticsWorkspace.id
   }
 }
 

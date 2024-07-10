@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.24.24.22086",
-      "templateHash": "1201384740295974037"
+      "version": "0.28.1.47646",
+      "templateHash": "15994311308947372117"
     }
   },
   "parameters": {
@@ -23,6 +23,7 @@
     "storageAccountName": "[substring(format('st{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "keyVaultName": "[substring(format('kv{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "applicationInsightsName": "[substring(format('ai{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "logAnalyticsName": "[substring(format('la{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "containerRegistryName": "[substring(format('cr{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "workspaceName": "[substring(format('ml{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
     "virtualNetworkName": "[substring(format('vn{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
@@ -78,14 +79,33 @@
       }
     },
     {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2021-12-01-preview",
+      "name": "[variables('logAnalyticsName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 90,
+        "workspaceCapping": {
+          "dailyQuotaGb": "0.023"
+        }
+      }
+    },
+    {
       "type": "Microsoft.Insights/components",
       "apiVersion": "2020-02-02",
       "name": "[variables('applicationInsightsName')]",
       "location": "[variables('location')]",
       "kind": "web",
       "properties": {
-        "Application_Type": "web"
-      }
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      ]
     },
     {
       "type": "Microsoft.ContainerRegistry/registries",
