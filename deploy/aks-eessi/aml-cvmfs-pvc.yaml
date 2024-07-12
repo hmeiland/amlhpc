@@ -3,6 +3,9 @@ kind: StorageClass
 metadata:
   name: cvmfs
 provisioner: cvmfs.csi.cern.ch
+parameters:
+  # Repository address goes here.
+  repository: software.eessi.io
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -12,7 +15,7 @@ metadata:
   labels:
     ml.azure.com/pvc: "true"
   annotations:
-    ml.azure.com/mountpath: "/cvmfs"
+    ml.azure.com/mountpath: "/cvmfs/software.eessi.io"
 spec:
   storageClassName: "cvmfs"
   accessModes:

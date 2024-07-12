@@ -29,6 +29,6 @@ popd
 
 helm install cvmfs oci://${1}.azurecr.io/helm/cvmfs-csi
 kubectl create -f aml-cvmfs-pvc.yaml
-kubectl create -f aml-pod-mount-all-repos.yaml 
+# kubectl create -f aml-pod-mount-all-repos.yaml 
 
 rm -rf cvmfs-csi
