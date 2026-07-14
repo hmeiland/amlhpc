@@ -23,8 +23,8 @@ Again the output files are expected to be written in `outputs` to make sure the 
 
 On your Compute vm, you have the option to mount a datastore, which in itself can be managed from the Data - Datastores in AML Studio. 
 This datastore will be mounted as `~/cloudfiles/data/<datastore>`. 
-Amlslurm can use this datastore as a "shared filesystem", and can also mount the datastore on the compute vm's for the job. 
-Make sure to name the mountpoint the same as the datastore name to allow amlslurm to recognize it. 
+amlhpc can use this datastore as a "shared filesystem", and can also mount the datastore on the compute vm's for the job. 
+Make sure to name the mountpoint the same as the datastore name to allow amlhpc to recognize it. 
 The mount will be made at the present work directory level, so the job has no access to higher level directories and files. 
 On the compute side, the filelist does not get refreshed, thus you have to unmount and again mount to see the result files.
 
