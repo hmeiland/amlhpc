@@ -1,6 +1,6 @@
 [project]
 name = "amlhpc"
-version = "0.4.0"
+version = "0.5.0"
 description = "Emulate Slurm/PBS/LSF HPC scheduler in Azure ML"
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
@@ -26,6 +26,7 @@ sbatch = "amlhpc.slurm.sbatch:sbatch"
 sinfo = "amlhpc.slurm.sinfo:sinfo"
 squeue = "amlhpc.slurm.squeue:squeue"
 container = "amlhpc.container:container"
+deploy = "amlhpc.deploy:deploy"
 
 [tool.poetry]
 packages = [
