@@ -1,28 +1,32 @@
-[tool.poetry]
+[project]
 name = "amlhpc"
-version = "0.2.2"
-authors = [ "Hugo Meiland <hugo.meiland@microsoft.com>", "Utkarsh Ayachit <uayachit@microsoft.com>" ]
+version = "0.2.3"
 description = "Emulate Slurm/PBS/LSF HPC scheduler in Azure ML"
 readme = "README.md"
+requires-python = ">=3.9,<4.0"
+authors = [
+    { name = "Hugo Meiland", email = "hugo.meiland@microsoft.com" },
+]
+dependencies = [
+    "azure-ai-ml>=1.34.0,<2.0.0",
+    "azure-identity>=1.17.0,<2.0.0",
+    "requests>=2.31.0,<3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hmeiland/amlhpc"
+Issues = "https://github.com/hmeiland/amlhpc/issues"
+
+[project.scripts]
+sbatch = "amlhpc.slurm.sbatch:sbatch"
+sinfo = "amlhpc.slurm.sinfo:sinfo"
+squeue = "amlhpc.slurm.squeue:squeue"
+
+[tool.poetry]
 packages = [
     { include = "amlhpc" }
 ]
 
-[tool.poetry.scripts]
-sbatch = 'amlhpc.slurm.sbatch:sbatch'
-sinfo = 'amlhpc.slurm.sinfo:sinfo'
-squeue = 'amlhpc.slurm.squeue:squeue'
-
-[tool.poetry.dependencies]
-python = ">=3.8,<4.0"
-azure-ai-ml = "^1.12.1"
-#azureml-core = "^1.54.0.post1"
-#azure-cli = "^2.49.0"
-
-[project.urls]
-Homepage = "https://github.com/hmeiland/aml-slurm"
-Issues = "https://github.com/hmeiland/aml-slurm/issues"
-
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0"]
 build-backend = "poetry.core.masonry.api"
