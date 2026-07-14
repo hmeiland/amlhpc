@@ -1,12 +1,16 @@
 # environments
 
-The default amlhpc docker container is currently build and hosted on docker.io since the bicep deployment does not support
-the contextUri through git yet.
+Container environments for amlhpc jobs on Azure Machine Learning. Each
+subdirectory is a build context containing a `Dockerfile`.
 
-```
-docker build -t amlhpc-ubuntu2004 amlhpc-ubuntu2004/
-docker tag amlhpc-ubuntu2004 hmeiland/amlhpc-ubuntu2004
-docker push hmeiland/amlhpc-ubuntu2004
+Build and register them into your AML workspace with `container`, which uses
+Azure ML's native build workflow and provisions the workspace container
+registry if one does not exist yet:
+
+```bash
+container                       # build every environment in this directory
+container -e amlhpc-ubuntu2204  # build a single environment
 ```
 
-The amlhpc-ubuntu2004 environment references this docker container and does not use any additional conda.yml.
+`amlhpc-ubuntu2204` is the default job environment used by `sbatch` (referenced
+as `amlhpc-ubuntu2204@latest`).
