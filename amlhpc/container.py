@@ -12,7 +12,7 @@ class mlComputeAuth:
         return my_token
 
 
-def sbuild(vargs=None):
+def container(vargs=None):
     import os
 
     try:
@@ -46,8 +46,8 @@ def sbuild(vargs=None):
         enable_telemetry=False,
         )
 
-    parser = argparse.ArgumentParser(description='sbuild: build amlhpc container environments in Azure ML. Uses the AML build workflow, which provisions the workspace container registry if required.')
-    parser.prog = "sbuild"
+    parser = argparse.ArgumentParser(description='container: build amlhpc container environments in Azure ML. Uses the AML build workflow, which provisions the workspace container registry if required.')
+    parser.prog = "container"
     parser.add_argument('-p', '--path', default="environments", type=str,
                         help='directory holding environment build contexts, each a subdirectory containing a Dockerfile')
     parser.add_argument('-e', '--environment', default="None", type=str,

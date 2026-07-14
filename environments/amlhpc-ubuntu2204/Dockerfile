@@ -4,7 +4,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     nfs-common lsb-release pssh sudo && \
     apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/*  
+    rm -rf /var/lib/apt/lists/*
 
 ## HPC tuning
 RUN echo '\
@@ -20,18 +20,21 @@ RUN cd /usr/bin && \
         wget -q https://aka.ms/downloadazcopy-v10-linux -O - | tar zxf - --strip-components 1 --wildcards '*/azcopy' && \
         chmod 755 /usr/bin/azcopy
 
-## install eessi
-RUN wget --no-check-certificate https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb
-RUN apt-get update && \
+## install CernVM-FS + EESSI configuration (https://www.eessi.io/docs/getting_access/native_installation/)
+RUN wget -q https://cvmrepo.s3.cern.ch/cvmrepo/apt/cvmfs-release-latest_all.deb && \
+    dpkg -i cvmfs-release-latest_all.deb && \
+    rm -f cvmfs-release-latest_all.deb && \
+    apt-get update && \
     apt-get install -y cvmfs && \
+    wget -q https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb && \
+    dpkg -i cvmfs-config-eessi_latest_all.deb && \
+    rm -f cvmfs-config-eessi_latest_all.deb && \
     apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/*  
-RUN wget https://github.com/EESSI/filesystem-layer/releases/download/v0.5.0/cvmfs-config-eessi_0.5.0_all.deb && dpkg -i cvmfs-config-eessi_0.5.0_all.deb
+    rm -rf /var/lib/apt/lists/*
 RUN bash -c "echo 'CVMFS_CLIENT_PROFILE="single"' > /etc/cvmfs/default.local"; \
     bash -c "echo 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local"; \
-    bash -c "echo 'CVMFS_REPOSITORIES=cms.cern.ch,pilot.eessi-hpc.org,software.eessi.io' >> /etc/cvmfs/default.local"; \
     bash -c "echo 'CVMFS_HTTP_PROXY=DIRECT' >> /etc/cvmfs/default.local"; \
-    cvmfs_config setup; mkdir -p /cvmfs/pilot.eessi-hpc.org /cvmfs/software.eessi.io; ln -sf /bin/bash /bin/sh
+    cvmfs_config setup; ln -sf /bin/bash /bin/sh
 
 RUN groupadd -g 1000 azureuser && useradd -m azureuser -u 1000 -g azureuser && adduser azureuser sudo && echo "azureuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/azureuser
 USER azureuser
