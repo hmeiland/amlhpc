@@ -138,14 +138,14 @@ resource subnetanf 'Microsoft.Network/virtualNetworks/subnets@2021-08-01' = {
 
 var setupscript_1 = '''
 pip install amlhpc 
-wget --no-check-certificate https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb
+wget https://cvmrepo.s3.cern.ch/cvmrepo/apt/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb
 apt-get update && apt-get install -y cvmfs
-wget https://github.com/EESSI/filesystem-layer/releases/download/v0.5.0/cvmfs-config-eessi_0.5.0_all.deb && dpkg -i cvmfs-config-eessi_0.5.0_all.deb
+wget https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb && dpkg -i cvmfs-config-eessi_latest_all.deb
 echo 'CVMFS_CLIENT_PROFILE="single"' > /etc/cvmfs/default.local
 echo 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local
-echo 'CVMFS_REPOSITORIES=cms.cern.ch,pilot.eessi-hpc.org,software.eessi.io' >> /etc/cvmfs/default.local
+echo 'CVMFS_REPOSITORIES=cms.cern.ch,software.eessi.io' >> /etc/cvmfs/default.local
 echo 'CVMFS_HTTP_PROXY=DIRECT' >> /etc/cvmfs/default.local
-cvmfs_config setup; mkdir -p /cvmfs/pilot.eessi-hpc.org /cvmfs/software.eessi.io
+cvmfs_config setup; mkdir -p /cvmfs/software.eessi.io
 echo "export SUBSCRIPTION='''
 var setupscript_2 = concat(setupscript_1, subscription().subscriptionId)
 var setupscript = concat(setupscript_2, '" > /etc/profile.d/amlhpc.sh')
@@ -230,10 +230,10 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource ml_cust_env 'Microsoft.MachineLearningServices/workspaces/environments/versions@2023-06-01-preview' = {  
-  name: '${workspace.name}/amlhpc-ubuntu2004/1'  
+  name: '${workspace.name}/amlhpc-ubuntu2204/1'  
   properties: {  
     osType: 'Linux'
-    image: 'docker.io/hmeiland/amlhpc-ubuntu2004'
+    image: 'docker.io/hmeiland/amlhpc-ubuntu2204'
     autoRebuild: 'OnBaseImageUpdate'
   }  
 }  
