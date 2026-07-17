@@ -7,6 +7,8 @@ def _commands():
     from .slurm.sinfo import sinfo
     from .slurm.squeue import squeue
     from .pbs.qsub import qsub
+    from .pbs.qstat import qstat, qdel
+    from .lsf.bjobs import bjobs, bkill
     from .container import container
     from .deploy import deploy
     from .dask.scheduler import dask_scheduler_up
@@ -19,6 +21,10 @@ def _commands():
         'sinfo': sinfo,
         'squeue': squeue,
         'qsub': qsub,
+        'qstat': qstat,
+        'qdel': qdel,
+        'bjobs': bjobs,
+        'bkill': bkill,
         'container': container,
         'deploy': deploy,
         'dask-scheduler-up': dask_scheduler_up,

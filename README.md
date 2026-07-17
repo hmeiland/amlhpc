@@ -27,6 +27,10 @@ commands:
   sinfo
   squeue
   qsub
+  qstat
+  qdel
+  bjobs
+  bkill
   container
   deploy
   dask-scheduler-up
@@ -56,6 +60,30 @@ Show the queue with historical jobs. squeue does not take any options.
 JOBID                           NAME            PARTITION       STATE   TIME
 crimson_root_52y4l9yfjd         sbatch  	f16s
 polite_lock_v8wyc9gnx9          runscript.sh    f16s
+```
+
+# qstat / bjobs
+
+Job-control listing for the PBS (`qstat`) and LSF (`bjobs`) users. Both are backed by the same
+Azure Machine Learning job list as `squeue`, but add the job STATE column. Neither takes any options.
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ qstat
+JOBID                           NAME            PARTITION       STATE
+jolly_card_p6yh0phzxm           jolly_card_p6yh login-5n2kkmvhk Completed
+cool_pig_mwhdcjs72n             localtest-f4s   f4s             Failed
+```
+`bjobs` produces identical output; use whichever matches your scheduler muscle memory.
+
+# qdel / bkill
+
+Cancel one or more running jobs by JOBID. `qdel` (PBS) and `bkill` (LSF) are equivalent; both accept
+one or more JOBIDs (as shown by `qstat`/`bjobs`/`squeue`).
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ qdel jolly_card_p6yh0phzxm
+qdel: cancellation requested for job 'jolly_card_p6yh0phzxm'
+```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ bkill jobid1 jobid2
 ```
 
 # sbatch
