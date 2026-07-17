@@ -22,6 +22,7 @@ Homepage = "https://github.com/hmeiland/amlhpc"
 Issues = "https://github.com/hmeiland/amlhpc/issues"
 
 [project.scripts]
+amlhpc = "amlhpc.__main__:main"
 sbatch = "amlhpc.slurm.sbatch:sbatch"
 srun = "amlhpc.slurm.srun:srun"
 sinfo = "amlhpc.slurm.sinfo:sinfo"
@@ -35,6 +36,9 @@ dask-down = "amlhpc.dask.down:dask_down"
 [tool.poetry]
 packages = [
     { include = "amlhpc" }
+]
+include = [
+    { path = "amlhpc/templates/*", format = ["sdist", "wheel"] }
 ]
 
 [build-system]

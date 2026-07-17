@@ -5,11 +5,13 @@ Deploy amlhpc infrastructure on Azure Machine Learning.
 ## Using the `deploy` command (amlhpc)
 
 Initial deployment — workspace, dependencies, container registry, network, a login VM
-and a default cluster (run from a checkout so the Bicep template is found):
+and a default cluster. `deploy` is also available as `amlhpc deploy`. The Bicep template
+ships with the package, so this works from any directory once amlhpc is pip-installed
+(pass `--template` to override with your own):
 
 ```bash
 deploy init -g amlhpc -l "centralus" -n amlhpc
-deploy init -g amlhpc --what-if            # preview only, creates nothing
+amlhpc deploy init -g amlhpc --what-if      # preview only, creates nothing
 ```
 
 By default the login ComputeInstance has public SSH disabled (work from its

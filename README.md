@@ -13,6 +13,29 @@ CI_WORKSPACE=<name of your Azure MAchine Learning Workspace>
 
 In the Azure Machine Learning environment, the CI_RESOURCE_GROUP and CI_WORKGROUP are normally set, so you only need to export SUBSCRIPTION.
 
+Every command is available both as a standalone executable (`sbatch`, `srun`, `sinfo`, `squeue`, `deploy`, ...)
+and as a subcommand of the unified `amlhpc` entry point, so `amlhpc sbatch ...` is equivalent to `sbatch ...`.
+```
+(azureml_py38) azureuser@login-vm:~$ amlhpc --help
+usage: amlhpc <command> [<args>]
+
+amlhpc: a -just enough- Slurm/PBS experience on Azure Machine Learning
+
+commands:
+  sbatch
+  srun
+  sinfo
+  squeue
+  qsub
+  container
+  deploy
+  dask-scheduler-up
+  dask-up
+  dask-down
+
+run 'amlhpc <command> --help' for command-specific options
+```
+
 # sinfo
 
 Show the available partitions. sinfo does not take any options.

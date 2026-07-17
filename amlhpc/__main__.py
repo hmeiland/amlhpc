@@ -1,22 +1,57 @@
-from argparse import ArgumentParser
-from logging import getLogger
-from . import squeue, sbatch, sinfo
+import sys
 
-log = getLogger('amlhpc')
 
-parser = ArgumentParser('amlhpc', description='amlhpc: slurm APIs for Azure Machine Learning', add_help=False)
-parser.add_argument('command', help='sub-command to run', choices=['squeue', 'sbatch', 'sinfo'])
+def _commands():
+    from .slurm.sbatch import sbatch
+    from .slurm.srun import srun
+    from .slurm.sinfo import sinfo
+    from .slurm.squeue import squeue
+    from .pbs.qsub import qsub
+    from .container import container
+    from .deploy import deploy
+    from .dask.scheduler import dask_scheduler_up
+    from .dask.worker import dask_up
+    from .dask.down import dask_down
 
-args, extra_args = parser.parse_known_args()
-if args.command == 'squeue':
-    log.info("squeue")
-    squeue(extra_args)
-elif args.command == 'sbatch':
-    log.info("sbatch")
-    sbatch(extra_args)
-elif args.command == 'sinfo':
-    log.info("sinfo")
-    sinfo(extra_args)
-else:
-    log.info("Unknown command")
-    exit(-1)
+    return {
+        'sbatch': sbatch,
+        'srun': srun,
+        'sinfo': sinfo,
+        'squeue': squeue,
+        'qsub': qsub,
+        'container': container,
+        'deploy': deploy,
+        'dask-scheduler-up': dask_scheduler_up,
+        'dask-up': dask_up,
+        'dask-down': dask_down,
+    }
+
+
+def main(vargs=None):
+    argv = list(sys.argv[1:] if vargs is None else vargs)
+
+    commands = _commands()
+
+    if not argv or argv[0] in ('-h', '--help'):
+        print('usage: amlhpc <command> [<args>]')
+        print()
+        print('amlhpc: a -just enough- Slurm/PBS experience on Azure Machine Learning')
+        print()
+        print('commands:')
+        for name in commands:
+            print('  ' + name)
+        print()
+        print("run 'amlhpc <command> --help' for command-specific options")
+        return 0 if argv else -1
+
+    command = argv[0]
+    if command not in commands:
+        print("amlhpc: unknown command '" + command + "'")
+        print("run 'amlhpc --help' for the list of commands")
+        return -1
+
+    return commands[command](argv[1:])
+
+
+if __name__ == '__main__':
+    sys.exit(main())

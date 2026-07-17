@@ -1,0 +1,294 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.45.15.27210",
+      "templateHash": "10381900482503030870"
+    }
+  },
+  "parameters": {
+    "name": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the name of the deployment."
+      }
+    },
+    "enableLoginSsh": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable public SSH access on the login ComputeInstance. Leave disabled for production; enable to allow remote SSH (e.g. for troubleshooting)."
+      }
+    },
+    "loginSshPublicKey": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SSH public key for the login ComputeInstance admin user. Required only when enableLoginSsh is true."
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "resourcePostfix": "[format('{0}z', uniqueString(subscription().subscriptionId, resourceGroup().name))]",
+    "tenantId": "[subscription().tenantId]",
+    "storageAccountName": "[substring(format('st{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "keyVaultName": "[substring(format('kv{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "applicationInsightsName": "[substring(format('ai{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "logAnalyticsName": "[substring(format('la{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "containerRegistryName": "[substring(format('cr{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "workspaceName": "[substring(format('ml{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "virtualNetworkName": "[substring(format('vn{0}{1}', parameters('name'), variables('resourcePostfix')), 0, 20)]",
+    "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+    "keyVaultId": "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]",
+    "applicationInsightId": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
+    "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+    "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
+    "setupscript_1": "pip install amlhpc \nwget https://cvmrepo.s3.cern.ch/cvmrepo/apt/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb\napt-get update && apt-get install -y cvmfs\nwget https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb && dpkg -i cvmfs-config-eessi_latest_all.deb\necho 'CVMFS_CLIENT_PROFILE=\"single\"' > /etc/cvmfs/default.local\necho 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local\necho 'CVMFS_REPOSITORIES=cms.cern.ch,software.eessi.io' >> /etc/cvmfs/default.local\necho 'CVMFS_HTTP_PROXY=DIRECT' >> /etc/cvmfs/default.local\ncvmfs_config setup; mkdir -p /cvmfs/software.eessi.io\necho \"export SUBSCRIPTION=",
+    "setupscript_2": "[concat(variables('setupscript_1'), subscription().subscriptionId)]",
+    "setupscript": "[concat(variables('setupscript_2'), '\" > /etc/profile.d/amlhpc.sh')]",
+    "startupScriptData": "echo `date` > /startup.txt"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2022-05-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard_RAGRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "encryption": {
+          "services": {
+            "blob": {
+              "enabled": true
+            },
+            "file": {
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        },
+        "supportsHttpsTrafficOnly": true,
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2022-07-01",
+      "name": "[variables('keyVaultName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "tenantId": "[variables('tenantId')]",
+        "sku": {
+          "name": "standard",
+          "family": "A"
+        },
+        "accessPolicies": [],
+        "enableSoftDelete": true
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2021-12-01-preview",
+      "name": "[variables('logAnalyticsName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 90,
+        "workspaceCapping": {
+          "dailyQuotaGb": "0.023"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('applicationInsightsName')]",
+      "location": "[variables('location')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('logAnalyticsName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ContainerRegistry/registries",
+      "apiVersion": "2022-02-01-preview",
+      "name": "[variables('containerRegistryName')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "location": "[variables('location')]",
+      "properties": {
+        "adminUserEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[variables('workspaceName')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "location": "[variables('location')]",
+      "properties": {
+        "friendlyName": "[variables('workspaceName')]",
+        "storageAccount": "[variables('storageAccountId')]",
+        "keyVault": "[variables('keyVaultId')]",
+        "applicationInsights": "[variables('applicationInsightId')]",
+        "containerRegistry": "[variables('containerRegistryId')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2021-05-01",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[variables('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.0.0.0/16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2021-08-01",
+      "name": "[format('{0}/{1}', variables('virtualNetworkName'), 'cluster')]",
+      "properties": {
+        "addressPrefix": "10.0.1.0/24"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2021-08-01",
+      "name": "[format('{0}/{1}', variables('virtualNetworkName'), 'anf')]",
+      "properties": {
+        "addressPrefix": "10.0.2.0/24"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces/computes",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[format('{0}/{1}', variables('workspaceName'), format('login-{0}', variables('resourcePostfix')))]",
+      "location": "[variables('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "computeType": "ComputeInstance",
+        "computeLocation": "[variables('location')]",
+        "description": "Login vm",
+        "disableLocalAuth": "[not(parameters('enableLoginSsh'))]",
+        "properties": {
+          "applicationSharingPolicy": "Personal",
+          "computeInstanceAuthorizationType": "personal",
+          "sshSettings": "[if(parameters('enableLoginSsh'), createObject('sshPublicAccess', 'Enabled', 'adminPublicKey', parameters('loginSshPublicKey')), createObject('sshPublicAccess', 'Disabled'))]",
+          "subnet": {
+            "id": "[variables('subnetClusterId')]"
+          },
+          "vmSize": "Standard_F2s_v2",
+          "setupScripts": {
+            "scripts": {
+              "creationScript": {
+                "scriptSource": "inline",
+                "scriptData": "[base64(variables('setupscript'))]"
+              },
+              "startupScript": {
+                "scriptSource": "inline",
+                "scriptData": "[base64(variables('startupScriptData'))]"
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces/computes",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[format('{0}/{1}', variables('workspaceName'), 'f4s')]",
+      "location": "[variables('location')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "computeType": "AmlCompute",
+        "computeLocation": "[variables('location')]",
+        "disableLocalAuth": true,
+        "properties": {
+          "vmPriority": "Dedicated",
+          "vmSize": "Standard_F4s_v2",
+          "isolatedNetwork": false,
+          "osType": "Linux",
+          "remoteLoginPortPublicAccess": "Disabled",
+          "scaleSettings": {
+            "minNodeCount": 0,
+            "maxNodeCount": 5,
+            "nodeIdleTimeBeforeScaleDown": "PT120S"
+          },
+          "subnet": {
+            "id": "[variables('subnetClusterId')]"
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(format('login-{0}', variables('resourcePostfix')), variables('resourcePostfix'))]",
+      "properties": {
+        "roleDefinitionId": "[resourceId('microsoft.authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces/computes', variables('workspaceName'), format('login-{0}', variables('resourcePostfix'))), '2023-06-01-preview', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces/computes', variables('workspaceName'), format('login-{0}', variables('resourcePostfix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.MachineLearningServices/workspaces/environments/versions",
+      "apiVersion": "2023-06-01-preview",
+      "name": "[format('{0}/amlhpc-ubuntu2204/1', variables('workspaceName'))]",
+      "properties": {
+        "osType": "Linux",
+        "image": "docker.io/hmeiland/amlhpc-ubuntu2204",
+        "autoRebuild": "OnBaseImageUpdate"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
+      ]
+    }
+  ]
+}

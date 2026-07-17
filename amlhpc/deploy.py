@@ -23,7 +23,7 @@ def deploy(vargs=None):
     init_parser.add_argument('-g', '--resource-group', required=True, help='resource group to deploy into; created if it does not exist')
     init_parser.add_argument('-l', '--location', default='westus', help='Azure region for the resource group (default: westus)')
     init_parser.add_argument('-n', '--name', default='amlhpc', help='deployment name parameter, used as a prefix for the resource names (default: amlhpc)')
-    init_parser.add_argument('-t', '--template', default='deploy/amlhpc_simple.bicep', help='path to the Bicep template (default: deploy/amlhpc_simple.bicep)')
+    init_parser.add_argument('-t', '--template', default=None, help='path to the Bicep template (default: the template bundled with amlhpc)')
     init_parser.add_argument('--enable-login-ssh', action='store_true', help='enable public SSH access on the login ComputeInstance (requires --login-ssh-key)')
     init_parser.add_argument('--login-ssh-key', default='', help='SSH public key (string or path to a .pub file) for the login CI admin user; required with --enable-login-ssh')
     init_parser.add_argument('--what-if', action='store_true', help='preview the changes without deploying any resources')
@@ -44,6 +44,25 @@ def deploy(vargs=None):
         deploy_partition(args)
 
 
+def resolve_template(template):
+    import os
+
+    if template is not None:
+        if not os.path.isfile(template):
+            print("Missing: Bicep template '" + template + "' not found; check the path passed to --template")
+            exit(-1)
+        return template, None
+
+    import importlib.resources
+    import tempfile
+
+    resource = importlib.resources.files('amlhpc.templates') / 'amlhpc_simple.bicep'
+    tmp = tempfile.NamedTemporaryFile(prefix='amlhpc_simple_', suffix='.bicep', delete=False)
+    tmp.write(resource.read_bytes())
+    tmp.close()
+    return tmp.name, tmp.name
+
+
 def deploy_init(args):
     import os
     import shutil
@@ -53,15 +72,13 @@ def deploy_init(args):
         print("deploy init requires the Azure CLI (az); install it or deploy the Bicep template manually (see deploy/README.md)")
         exit(-1)
 
-    if not os.path.isfile(args.template):
-        print("Missing: Bicep template '" + args.template + "' not found; run from a checkout or set --template")
-        exit(-1)
+    template, tmp_template = resolve_template(args.template)
 
     subprocess.run(["az", "group", "create", "--name", args.resource_group, "--location", args.location], check=True)
 
     deploy_command = ["az", "deployment", "group", "create",
                       "--resource-group", args.resource_group,
-                      "--template-file", args.template,
+                      "--template-file", template,
                       "--parameters", "name=" + args.name]
 
     if args.enable_login_ssh:
@@ -76,7 +93,11 @@ def deploy_init(args):
 
     if args.what_if:
         deploy_command.append("--what-if")
-    subprocess.run(deploy_command, check=True)
+    try:
+        subprocess.run(deploy_command, check=True)
+    finally:
+        if tmp_template is not None:
+            os.remove(tmp_template)
 
 
 def deploy_partition(args):
