@@ -17,7 +17,9 @@ class mlComputeAuth:
 # advertises its own VNet-routable private IP (via IMDS) on a pinned port range
 # so the scheduler can dial back (Dask connections are bidirectional).
 # "dask" is resolved next to the active python: in a conda-materialized image
-# env its bin dir is not always on the container's PATH.
+# env its bin dir is not always on the container's PATH. If the image predates
+# the dask[distributed] Dockerfile addition, the worker pip-installs it at job
+# time so dask-up works without waiting on an environment image rebuild.
 _WORKER_SCRIPT = r'''set -e
 WORKER_IP=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text")
 echo "dask worker private ip: ${WORKER_IP}"
@@ -28,6 +30,12 @@ LIFETIME_ARGS=""
 if [ -n "${DASK_LIFETIME}" ]; then LIFETIME_ARGS="--lifetime ${DASK_LIFETIME}"; fi
 DASK_BIN="$(dirname "$(command -v python)")/dask"
 if [ ! -x "${DASK_BIN}" ]; then DASK_BIN=dask; fi
+if ! "${DASK_BIN}" --version >/dev/null 2>&1; then
+  echo "dask not found in image; installing dask[distributed]"
+  python -m pip install --no-cache-dir "dask[distributed]"
+  DASK_BIN="$(dirname "$(command -v python)")/dask"
+  if [ ! -x "${DASK_BIN}" ]; then DASK_BIN=dask; fi
+fi
 exec "${DASK_BIN}" worker "${DASK_SCHEDULER}" \
   --host "${WORKER_IP}" \
   --worker-port ${DASK_WORKER_PORTS} \
