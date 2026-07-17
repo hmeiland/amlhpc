@@ -33,8 +33,9 @@ if [ ! -x "${DASK_BIN}" ]; then DASK_BIN=dask; fi
 if ! "${DASK_BIN}" --version >/dev/null 2>&1; then
   echo "dask not found in image; installing dask[distributed]"
   python -m pip install --no-cache-dir "dask[distributed]"
-  DASK_BIN="$(dirname "$(command -v python)")/dask"
-  if [ ! -x "${DASK_BIN}" ]; then DASK_BIN=dask; fi
+  export PATH="$(python -m site --user-base)/bin:$(dirname "$(command -v python)"):${PATH}"
+  DASK_BIN="$(command -v dask || true)"
+  if [ -z "${DASK_BIN}" ]; then DASK_BIN="$(python -m site --user-base)/bin/dask"; fi
 fi
 exec "${DASK_BIN}" worker "${DASK_SCHEDULER}" \
   --host "${WORKER_IP}" \
