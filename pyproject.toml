@@ -1,6 +1,6 @@
 [project]
 name = "amlhpc"
-version = "0.5.0"
+version = "0.6.0"
 description = "Emulate Slurm/PBS/LSF HPC scheduler in Azure ML"
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
