@@ -9,6 +9,7 @@ def _commands():
     from .pbs.qsub import qsub
     from .pbs.qstat import qstat, qdel
     from .lsf.bjobs import bjobs, bkill
+    from .lsf.bsub import bsub
     from .container import container
     from .deploy import deploy
     from .dask.scheduler import dask_scheduler_up
@@ -25,6 +26,7 @@ def _commands():
         'qdel': qdel,
         'bjobs': bjobs,
         'bkill': bkill,
+        'bsub': bsub,
         'container': container,
         'deploy': deploy,
         'dask-scheduler-up': dask_scheduler_up,

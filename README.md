@@ -31,6 +31,7 @@ commands:
   qdel
   bjobs
   bkill
+  bsub
   container
   deploy
   dask-scheduler-up
@@ -85,6 +86,21 @@ qdel: cancellation requested for job 'jolly_card_p6yh0phzxm'
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ bkill jobid1 jobid2
 ```
+
+# bsub
+
+Submit a job the LSF way. `bsub` is a thin, LSF-style front-end for `sbatch`: the job command
+follows the options (rather than using `--wrap`), and `-q` selects the queue. A single existing
+file is treated as a script; anything else is run as a command line.
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ bsub -q f16s hostname
+gifted_engine_yq801rygm2
+```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ bsub -q hbv2 -n 4 ./runscript.sh
+```
+LSF-style options map onto sbatch: `-q/--queue` -> partition, `-n/--num-slots` -> nodes,
+`-J/--job-name` is informational (AML assigns the JOBID). `--container`/`-e` pass through.
 
 # sbatch
 
