@@ -17,9 +17,10 @@ class mlComputeAuth:
 # advertises its own VNet-routable private IP (via IMDS) on a pinned port range
 # so the scheduler can dial back (Dask connections are bidirectional).
 # "dask" is resolved next to the active python: in a conda-materialized image
-# env its bin dir is not always on the container's PATH. If the image predates
-# the dask[distributed] Dockerfile addition, the worker pip-installs it at job
-# time so dask-up works without waiting on an environment image rebuild.
+# env its bin dir is not always on the container's PATH. Dask requires the
+# scheduler and workers to run the SAME distributed version; dask-up captures
+# the scheduler-side version and the worker pip-installs to match if the image
+# has a different (or no) distributed, so dask-up works without an image rebuild.
 _WORKER_SCRIPT = r'''set -e
 WORKER_IP=$(curl -s -H Metadata:true "http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text")
 echo "dask worker private ip: ${WORKER_IP}"
@@ -28,15 +29,14 @@ RESOURCE_ARGS=""
 if [ -n "${DASK_RESOURCES}" ]; then RESOURCE_ARGS="--resources ${DASK_RESOURCES}"; fi
 LIFETIME_ARGS=""
 if [ -n "${DASK_LIFETIME}" ]; then LIFETIME_ARGS="--lifetime ${DASK_LIFETIME}"; fi
-DASK_BIN="$(dirname "$(command -v python)")/dask"
-if [ ! -x "${DASK_BIN}" ]; then DASK_BIN=dask; fi
-if ! "${DASK_BIN}" --version >/dev/null 2>&1; then
-  echo "dask not found in image; installing dask[distributed]"
-  python -m pip install --no-cache-dir "dask[distributed]"
-  export PATH="$(python -m site --user-base)/bin:$(dirname "$(command -v python)"):${PATH}"
-  DASK_BIN="$(command -v dask || true)"
-  if [ -z "${DASK_BIN}" ]; then DASK_BIN="$(python -m site --user-base)/bin/dask"; fi
+HAVE_VER=$(python -c "import distributed; print(distributed.__version__)" 2>/dev/null || true)
+if [ "${HAVE_VER}" != "${DASK_DISTRIBUTED_VERSION}" ]; then
+  echo "worker distributed=${HAVE_VER:-none}, scheduler wants ${DASK_DISTRIBUTED_VERSION}; installing to match"
+  python -m pip install --no-cache-dir "distributed==${DASK_DISTRIBUTED_VERSION}" "dask==${DASK_DISTRIBUTED_VERSION}"
 fi
+export PATH="$(python -m site --user-base)/bin:$(dirname "$(command -v python)"):${PATH}"
+DASK_BIN="$(command -v dask || true)"
+if [ -z "${DASK_BIN}" ]; then DASK_BIN="$(python -m site --user-base)/bin/dask"; fi
 exec "${DASK_BIN}" worker "${DASK_SCHEDULER}" \
   --host "${WORKER_IP}" \
   --worker-port ${DASK_WORKER_PORTS} \
@@ -107,6 +107,8 @@ def dask_up(vargs=None):
                         help='auto-shutdown each worker after N seconds (safety TTL; default: none)')
     parser.add_argument('--environment', default="amlhpc-ubuntu2204@latest", type=str,
                         help='AML environment (docker image) for the workers')
+    parser.add_argument('--distributed-version', default="None", type=str,
+                        help='dask/distributed version workers must match (default: auto-detect this CI scheduler version)')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='provide output on found settings and job properties')
     args = parser.parse_args(vargs)
 
@@ -119,6 +121,15 @@ def dask_up(vargs=None):
         args.session = "dask-" + uuid.uuid4().hex[:8]
         if (args.verbose): print("generated session id: " + args.session)
 
+    if args.distributed_version == "None":
+        try:
+            import distributed
+            args.distributed_version = distributed.__version__
+        except Exception:
+            print("could not detect distributed version on this CI; pass --distributed-version to match the scheduler")
+            exit(-1)
+        if (args.verbose): print("scheduler distributed version: " + args.distributed_version)
+
     job_env = {
         "DASK_SCHEDULER": args.scheduler,
         "DASK_SESSION": args.session,
@@ -128,6 +139,7 @@ def dask_up(vargs=None):
         "DASK_WORKER_PORTS": args.worker_ports,
         "DASK_RESOURCES": "" if args.resources == "None" else args.resources,
         "DASK_LIFETIME": "" if args.lifetime == "None" else args.lifetime,
+        "DASK_DISTRIBUTED_VERSION": args.distributed_version,
     }
 
     if (args.verbose):
