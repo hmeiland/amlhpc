@@ -23,6 +23,7 @@ Issues = "https://github.com/hmeiland/amlhpc/issues"
 
 [project.scripts]
 sbatch = "amlhpc.slurm.sbatch:sbatch"
+srun = "amlhpc.slurm.srun:srun"
 sinfo = "amlhpc.slurm.sinfo:sinfo"
 squeue = "amlhpc.slurm.squeue:squeue"
 container = "amlhpc.container:container"

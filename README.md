@@ -66,4 +66,36 @@ optional arguments:
   -w WRAP, --wrap WRAP  command line to be executed, should be enclosed with quotes
 ```
 
+# srun
+
+Run a job on the login ComputeInstance instead of an AmlCompute cluster. `srun` mirrors `sbatch`, but the
+compute target is a ComputeInstance. With no `-p` the login CI is auto-discovered (the single computeinstance
+in the workspace). Use this to run control-plane tasks on the login node itself without SSH.
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ srun --wrap="hostname"
+stoic_beach_c4jpkltdrl
+```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ srun --help
+usage: srun [-h] [--container CONTAINER] [-e ENVIRONMENT] [-p PARTITION] [-v] [-w WRAP] [script]
+
+srun: run jobs on the login ComputeInstance
+
+positional arguments:
+  script                runscript to be executed
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --container CONTAINER
+                        container image for the job to run in
+  -e ENVIRONMENT, --environment ENVIRONMENT
+                        Azure Machine Learning environment, may use @latest
+  -p PARTITION, --partition PARTITION
+                        ComputeInstance to run on. Defaults to auto-discovered login CI. Use <sinfo> to view partitions
+  -w WRAP, --wrap WRAP  command line to be executed, should be enclosed with quotes
+```
+
+Note: like every AML command job, the command runs inside the environment's container (sharing the CI's
+network namespace, so it sees the CI private IP), not the bare CI host OS.
+
 If you encounter a scenario or option that is not supported yet or behaves unexpected, please create an issue and explain the option and the scenario.
