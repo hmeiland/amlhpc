@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "9372806567106851729"
+      "templateHash": "10381900482503030870"
     }
   },
   "parameters": {
@@ -28,13 +28,6 @@
       "metadata": {
         "description": "SSH public key for the login ComputeInstance admin user. Required only when enableLoginSsh is true."
       }
-    },
-    "enableDaskScheduler": {
-      "type": "bool",
-      "defaultValue": false,
-      "metadata": {
-        "description": "Auto-start a persistent Dask scheduler on the login ComputeInstance at every boot (via its startup script). Workers still attach with dask-up."
-      }
     }
   },
   "variables": {
@@ -56,8 +49,7 @@
     "setupscript_1": "pip install amlhpc \nwget https://cvmrepo.s3.cern.ch/cvmrepo/apt/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb\napt-get update && apt-get install -y cvmfs\nwget https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb && dpkg -i cvmfs-config-eessi_latest_all.deb\necho 'CVMFS_CLIENT_PROFILE=\"single\"' > /etc/cvmfs/default.local\necho 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local\necho 'CVMFS_REPOSITORIES=cms.cern.ch,software.eessi.io' >> /etc/cvmfs/default.local\necho 'CVMFS_HTTP_PROXY=DIRECT' >> /etc/cvmfs/default.local\ncvmfs_config setup; mkdir -p /cvmfs/software.eessi.io\necho \"export SUBSCRIPTION=",
     "setupscript_2": "[concat(variables('setupscript_1'), subscription().subscriptionId)]",
     "setupscript": "[concat(variables('setupscript_2'), '\" > /etc/profile.d/amlhpc.sh')]",
-    "daskStartupScript": "sudo -u azureuser -H bash -lc 'setsid nohup dask-scheduler-up > /home/azureuser/dask-scheduler.log 2>&1 &'\n",
-    "startupScriptData": "[if(parameters('enableDaskScheduler'), variables('daskStartupScript'), 'echo `date` > /startup.txt')]"
+    "startupScriptData": "echo `date` > /startup.txt"
   },
   "resources": [
     {

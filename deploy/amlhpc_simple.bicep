@@ -7,9 +7,6 @@ param enableLoginSsh bool = false
 @description('SSH public key for the login ComputeInstance admin user. Required only when enableLoginSsh is true.')
 param loginSshPublicKey string = ''
 
-@description('Auto-start a persistent Dask scheduler on the login ComputeInstance at every boot (via its startup script). Workers still attach with dask-up.')
-param enableDaskScheduler bool = false
-
 var location = resourceGroup().location
 
 var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}z'
@@ -159,13 +156,7 @@ echo "export SUBSCRIPTION='''
 var setupscript_2 = concat(setupscript_1, subscription().subscriptionId)
 var setupscript = concat(setupscript_2, '" > /etc/profile.d/amlhpc.sh')
 
-// startupScript runs as root on every CI boot. Launch the scheduler as azureuser
-// under a login shell so /etc/profile.d/amlhpc.sh (SUBSCRIPTION) and the conda env
-// are loaded; setsid+nohup detach it so it survives this script exiting.
-var daskStartupScript = '''
-sudo -u azureuser -H bash -lc 'setsid nohup dask-scheduler-up > /home/azureuser/dask-scheduler.log 2>&1 &'
-'''
-var startupScriptData = enableDaskScheduler ? daskStartupScript : 'echo `date` > /startup.txt'
+var startupScriptData = 'echo `date` > /startup.txt'
 
 resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-06-01-preview' = {
   parent: workspace
