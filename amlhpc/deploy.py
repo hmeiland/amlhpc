@@ -26,6 +26,7 @@ def deploy(vargs=None):
     init_parser.add_argument('-t', '--template', default='deploy/amlhpc_simple.bicep', help='path to the Bicep template (default: deploy/amlhpc_simple.bicep)')
     init_parser.add_argument('--enable-login-ssh', action='store_true', help='enable public SSH access on the login ComputeInstance (requires --login-ssh-key)')
     init_parser.add_argument('--login-ssh-key', default='', help='SSH public key (string or path to a .pub file) for the login CI admin user; required with --enable-login-ssh')
+    init_parser.add_argument('--enable-dask-scheduler', action='store_true', help='auto-start a persistent Dask scheduler on the login CI at every boot (workers still attach with dask-up)')
     init_parser.add_argument('--what-if', action='store_true', help='preview the changes without deploying any resources')
 
     partition_parser = subparsers.add_parser('partition', help='add a compute partition (AmlCompute cluster) to the workspace')
@@ -73,6 +74,9 @@ def deploy_init(args):
             with open(ssh_key) as key_file:
                 ssh_key = key_file.read().strip()
         deploy_command += ["--parameters", "enableLoginSsh=true", "--parameters", "loginSshPublicKey=" + ssh_key]
+
+    if args.enable_dask_scheduler:
+        deploy_command += ["--parameters", "enableDaskScheduler=true"]
 
     if args.what_if:
         deploy_command.append("--what-if")

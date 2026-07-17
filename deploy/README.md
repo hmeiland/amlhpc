@@ -25,6 +25,15 @@ deploy init -g amlhpc -n amlhpc --enable-login-ssh --login-ssh-key ~/.ssh/id_rsa
 The key may be a `.pub` file path or the key string itself. Connect over the CI's
 public IP on port 50000 as `azureuser` once provisioning completes.
 
+To auto-start a persistent Dask scheduler on the login CI at every boot, pass
+`--enable-dask-scheduler`. The CI's startup script then launches `dask-scheduler-up`
+in the background (logging to `/home/azureuser/dask-scheduler.log`); attach workers
+from the CI with `dask-up`:
+
+```bash
+deploy init -g amlhpc -n amlhpc --enable-dask-scheduler
+```
+
 Add a compute partition (AmlCompute cluster = Slurm partition) to an existing workspace.
 Requires `SUBSCRIPTION`, `CI_RESOURCE_GROUP` and `CI_WORKSPACE` to be set:
 
