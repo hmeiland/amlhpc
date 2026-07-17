@@ -27,6 +27,9 @@ sinfo = "amlhpc.slurm.sinfo:sinfo"
 squeue = "amlhpc.slurm.squeue:squeue"
 container = "amlhpc.container:container"
 deploy = "amlhpc.deploy:deploy"
+dask-scheduler-up = "amlhpc.dask.scheduler:dask_scheduler_up"
+dask-up = "amlhpc.dask.worker:dask_up"
+dask-down = "amlhpc.dask.down:dask_down"
 
 [tool.poetry]
 packages = [

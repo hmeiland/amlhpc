@@ -1,6 +1,12 @@
 @description('Specifies the name of the deployment.')
 param name string
 
+@description('Enable public SSH access on the login ComputeInstance. Leave disabled for production; enable to allow remote SSH (e.g. for troubleshooting).')
+param enableLoginSsh bool = false
+
+@description('SSH public key for the login ComputeInstance admin user. Required only when enableLoginSsh is true.')
+param loginSshPublicKey string = ''
+
 var location = resourceGroup().location
 
 var resourcePostfix = '${uniqueString(subscription().subscriptionId, resourceGroup().name)}z'
@@ -161,12 +167,15 @@ resource amlLoginVM 'Microsoft.MachineLearningServices/workspaces/computes@2023-
     computeType: 'ComputeInstance'
     computeLocation: location
     description: 'Login vm'
-    disableLocalAuth: true
+    disableLocalAuth: !enableLoginSsh
     properties: {
       applicationSharingPolicy: 'Personal'
       
       computeInstanceAuthorizationType: 'personal'
-      sshSettings: {
+      sshSettings: enableLoginSsh ? {
+        sshPublicAccess: 'Enabled'
+        adminPublicKey: loginSshPublicKey
+      } : {
         sshPublicAccess: 'Disabled'
       }
       subnet: {

@@ -24,6 +24,8 @@ def deploy(vargs=None):
     init_parser.add_argument('-l', '--location', default='westus', help='Azure region for the resource group (default: westus)')
     init_parser.add_argument('-n', '--name', default='amlhpc', help='deployment name parameter, used as a prefix for the resource names (default: amlhpc)')
     init_parser.add_argument('-t', '--template', default='deploy/amlhpc_simple.bicep', help='path to the Bicep template (default: deploy/amlhpc_simple.bicep)')
+    init_parser.add_argument('--enable-login-ssh', action='store_true', help='enable public SSH access on the login ComputeInstance (requires --login-ssh-key)')
+    init_parser.add_argument('--login-ssh-key', default='', help='SSH public key (string or path to a .pub file) for the login CI admin user; required with --enable-login-ssh')
     init_parser.add_argument('--what-if', action='store_true', help='preview the changes without deploying any resources')
 
     partition_parser = subparsers.add_parser('partition', help='add a compute partition (AmlCompute cluster) to the workspace')
@@ -61,6 +63,17 @@ def deploy_init(args):
                       "--resource-group", args.resource_group,
                       "--template-file", args.template,
                       "--parameters", "name=" + args.name]
+
+    if args.enable_login_ssh:
+        if not args.login_ssh_key:
+            print("Missing: --enable-login-ssh requires --login-ssh-key (a public key string or path to a .pub file)")
+            exit(-1)
+        ssh_key = args.login_ssh_key
+        if os.path.isfile(ssh_key):
+            with open(ssh_key) as key_file:
+                ssh_key = key_file.read().strip()
+        deploy_command += ["--parameters", "enableLoginSsh=true", "--parameters", "loginSshPublicKey=" + ssh_key]
+
     if args.what_if:
         deploy_command.append("--what-if")
     subprocess.run(deploy_command, check=True)

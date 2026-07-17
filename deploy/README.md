@@ -12,6 +12,19 @@ deploy init -g amlhpc -l "centralus" -n amlhpc
 deploy init -g amlhpc --what-if            # preview only, creates nothing
 ```
 
+By default the login ComputeInstance has public SSH disabled (work from its
+Jupyter/terminal, where the CI's managed identity authenticates automatically).
+To enable public SSH — e.g. to drive the CI remotely for troubleshooting — pass a
+public key. The CI still keeps its system-assigned identity and resource-group role,
+so `sbatch`/`dask-*` authenticate the same way:
+
+```bash
+deploy init -g amlhpc -n amlhpc --enable-login-ssh --login-ssh-key ~/.ssh/id_rsa.pub
+```
+
+The key may be a `.pub` file path or the key string itself. Connect over the CI's
+public IP on port 50000 as `azureuser` once provisioning completes.
+
 Add a compute partition (AmlCompute cluster = Slurm partition) to an existing workspace.
 Requires `SUBSCRIPTION`, `CI_RESOURCE_GROUP` and `CI_WORKSPACE` to be set:
 

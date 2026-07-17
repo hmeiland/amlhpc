@@ -2,9 +2,12 @@ FROM mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu22.04
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    nfs-common lsb-release pssh sudo && \
+    nfs-common lsb-release pssh sudo curl && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
+
+## install Dask (scheduler/worker CLI) for the dask-up worker pools
+RUN pip install --no-cache-dir "dask[distributed]"
 
 ## HPC tuning
 RUN echo '\

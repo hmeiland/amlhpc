@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "10205829648842811525"
+      "templateHash": "15033449100691924773"
     }
   },
   "parameters": {
@@ -13,6 +13,20 @@
       "type": "string",
       "metadata": {
         "description": "Specifies the name of the deployment."
+      }
+    },
+    "enableLoginSsh": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Enable public SSH access on the login ComputeInstance. Leave disabled for production; enable to allow remote SSH (e.g. for troubleshooting)."
+      }
+    },
+    "loginSshPublicKey": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SSH public key for the login ComputeInstance admin user. Required only when enableLoginSsh is true."
       }
     }
   },
@@ -188,13 +202,11 @@
         "computeType": "ComputeInstance",
         "computeLocation": "[variables('location')]",
         "description": "Login vm",
-        "disableLocalAuth": true,
+        "disableLocalAuth": "[not(parameters('enableLoginSsh'))]",
         "properties": {
           "applicationSharingPolicy": "Personal",
           "computeInstanceAuthorizationType": "personal",
-          "sshSettings": {
-            "sshPublicAccess": "Disabled"
-          },
+          "sshSettings": "[if(parameters('enableLoginSsh'), createObject('sshPublicAccess', 'Enabled', 'adminPublicKey', parameters('loginSshPublicKey')), createObject('sshPublicAccess', 'Disabled'))]",
           "subnet": {
             "id": "[variables('subnetClusterId')]"
           },
