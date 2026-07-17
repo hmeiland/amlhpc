@@ -6,8 +6,10 @@ RUN apt-get update && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
 
-## install Dask (scheduler/worker CLI) for the dask-up worker pools
-RUN pip install --no-cache-dir "dask[distributed]"
+## install Dask (scheduler/worker CLI) for the dask-up worker pools.
+## Pinned to the login-CI azureml_py38 scheduler's distributed version so
+## workers match the scheduler protocol without a job-time reinstall.
+RUN pip install --no-cache-dir "dask[distributed]==2023.2.0"
 
 ## HPC tuning
 RUN echo '\
