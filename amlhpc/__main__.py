@@ -6,6 +6,7 @@ def _commands():
     from .slurm.srun import srun
     from .slurm.sinfo import sinfo
     from .slurm.squeue import squeue
+    from .slurm.scancel import scancel
     from .pbs.qsub import qsub
     from .pbs.qstat import qstat, qdel
     from .lsf.bjobs import bjobs, bkill
@@ -21,6 +22,7 @@ def _commands():
         'srun': srun,
         'sinfo': sinfo,
         'squeue': squeue,
+        'scancel': scancel,
         'qsub': qsub,
         'qstat': qstat,
         'qdel': qdel,

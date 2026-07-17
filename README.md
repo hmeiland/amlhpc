@@ -26,6 +26,7 @@ commands:
   srun
   sinfo
   squeue
+  scancel
   qsub
   qstat
   qdel
@@ -75,10 +76,10 @@ cool_pig_mwhdcjs72n             localtest-f4s   f4s             Failed
 ```
 `bjobs` produces identical output; use whichever matches your scheduler muscle memory.
 
-# qdel / bkill
+# qdel / bkill / scancel
 
-Cancel one or more running jobs by JOBID. `qdel` (PBS) and `bkill` (LSF) are equivalent; both accept
-one or more JOBIDs (as shown by `qstat`/`bjobs`/`squeue`).
+Cancel one or more running jobs by JOBID. `qdel` (PBS), `bkill` (LSF) and `scancel` (Slurm) are
+equivalent; all accept one or more JOBIDs (as shown by `qstat`/`bjobs`/`squeue`).
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ qdel jolly_card_p6yh0phzxm
 qdel: cancellation requested for job 'jolly_card_p6yh0phzxm'
@@ -86,6 +87,25 @@ qdel: cancellation requested for job 'jolly_card_p6yh0phzxm'
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ bkill jobid1 jobid2
 ```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ scancel wheat_sand_gr2xcdpl2w
+scancel: cancellation requested for job 'wheat_sand_gr2xcdpl2w'
+```
+
+# qsub
+
+Submit a job the PBS way. `qsub` is a thin, PBS-style front-end for `sbatch`: `-q` selects the queue,
+`-l nodes=N` (or `select=N`, or `nodes=N:ppn=P`) sets the node count, and `-N` is an informational
+job name. A single existing file is treated as a script; anything else is run as a command line.
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ qsub -q f16s hostname
+gifted_engine_yq801rygm2
+```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ qsub -q hbv2 -l nodes=4 ./runscript.sh
+```
+PBS-style options map onto sbatch: `-q/--queue` -> partition, `-l nodes=/select=` -> nodes,
+`-N/--name` is informational (AML assigns the JOBID). `--container`/`-e` pass through.
 
 # bsub
 
