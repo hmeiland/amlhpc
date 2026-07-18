@@ -1,21 +1,25 @@
-To run this Dask example, choose the Python 3.8 - AzureML kernel in the notebook, since dask is already installed in that virtual env.
-Next start the scheduler by running:
-```
-from dask.distributed import Client, LocalCluster, progress
-client = Client(LocalCluster(ip='0.0.0.0', scheduler_port=12345, n_workers=0))
-client
-```
+# Dask on amlhpc
 
-Make sure to check the ip-address of your Compute vm, you can find it at the comm field in the Scheduler box:
-![Scheduler address](scheduler_address.png)
+Run a distributed Dask cluster on Azure Machine Learning using the built-in amlhpc dask commands:
 
-## Connect your terminal to the workspace
+- `dask-scheduler-up` — run a Dask scheduler on this Compute Instance (CI)
+- `dask-up` — submit a pool of AmlCompute worker VMs that connect back to the scheduler
+- `dask-down` — cancel the worker pool so the VMs scale to zero
 
-Worker VMs are added from a terminal with `sbatch`, so that terminal needs the workspace environment
-variables (`SUBSCRIPTION`, `CI_RESOURCE_GROUP`, `CI_WORKSPACE`). If you deployed the cluster with
-`deploy init`, those exports were written to `~/.amlhpc/<clustername>.sh`. Source it, then confirm the
-connection:
-```
+The scheduler binds to the CI's VNet-private IP (auto-detected via IMDS) and prints a `tcp://HOST:8786`
+address. Both the worker pool (`dask-up --scheduler`) and your notebook (`Client("tcp://HOST:8786")`)
+connect to that same address. Everything runs inside the workspace VNet, so no hardcoded IPs and no
+manual worker scripts are needed.
+
+Choose the **Python 3.8 - AzureML** kernel for the notebook, since dask is already installed there.
+
+## Connect your terminals to the workspace
+
+`dask-scheduler-up`, `dask-up` and `dask-down` need the workspace environment variables
+(`SUBSCRIPTION`, `CI_RESOURCE_GROUP`, `CI_WORKSPACE`). If you deployed the cluster with `deploy init`,
+those exports were written to `~/.amlhpc/<clustername>.sh`. In **every** terminal you open, source the
+profile first, then confirm the connection:
+```bash
 source ~/.amlhpc/<clustername>.sh
 sinfo
 ```
@@ -23,34 +27,48 @@ sinfo
 `CI_RESOURCE_GROUP` and `CI_WORKSPACE` are usually already set, so sourcing the profile mainly restores
 `SUBSCRIPTION` — but sourcing it is the reliable way to target a specific cluster.
 
-## Add workers
+## 1. Start the scheduler (terminal 1, on the CI)
 
-Use a simple Slurm job script:
+```bash
+dask-scheduler-up
 ```
-#!/bin/bash
+This stays in the foreground and prints the address the workers and client both use:
+```
+scheduler address (use for dask-up --scheduler and Client): tcp://10.0.1.5:8786
+dashboard: http://10.0.1.5:8787
+```
+Leave this terminal running. Copy the `tcp://…:8786` address for the next steps.
 
-conda init
-source activate base
-pip install dask==2023.2.0 distributed==2023.2.0 
-export PATH=$PATH:/home/azureuser/.local/bin
-dask worker tcp://10.0.1.5:12345
-```
+## 2. Add worker VMs (terminal 2, on the CI)
 
-Put the scheduler address from the first step on the last line; that is what connects each worker back
-to the Dask controller. Submit the script to add 4 worker VMs:
+Submit a pool of 4 worker VMs on the `f4s` partition, all attached to the scheduler and tagged with a
+session id so you can tear them down later:
+```bash
+dask-up -p f4s -s tcp://10.0.1.5:8786 --session pi-demo -N 4
 ```
-sbatch -p f4s --array 1-4 ./dask.job
-```
-Watch them register in the client widget (or the Dask dashboard) before running the calculation.
+`dask-up` prints one line — `jobname  session  pool  nodes` — and returns immediately; the AmlCompute
+job stays *Running* for the life of the session while the workers run in the foreground. The workers
+auto-install a matching `dask`/`distributed` version if the image differs, so no image rebuild is
+needed. Watch them register in the client widget (or the Dask dashboard) before running the calculation.
 
-## A real calculation: estimate π with distributed Monte Carlo
+> To add more capacity, run `dask-up` again against another partition, reusing the same
+> `--scheduler` and `--session`, e.g. `dask-up -p f16s -s tcp://10.0.1.5:8786 --session pi-demo -N 8`.
+
+## 3. A real calculation: estimate π with distributed Monte Carlo
+
+From the notebook, connect a client to the running scheduler by its address:
+```python
+from dask.distributed import Client, progress
+client = Client("tcp://10.0.1.5:8786")   # the address dask-scheduler-up printed
+client
+```
 
 Throw random darts at the unit square; the fraction landing inside the quarter circle approximates π/4.
 The work is embarrassingly parallel, so each task runs independently on a worker VM and we reduce the
 counts. More samples (and more workers) give a closer estimate — a result you can actually check.
 
-First define the per-task worker function:
-```
+Define the per-task worker function:
+```python
 import random
 
 def count_inside(n_samples, seed):
@@ -64,7 +82,7 @@ def count_inside(n_samples, seed):
 ```
 
 Then fan the tasks out across the cluster, gather the counts, and compute π:
-```
+```python
 %%time
 
 n_tasks = 512
@@ -83,12 +101,20 @@ print(f"error   : {abs(pi_estimate - 3.141592653589793):.2e}")
 ```
 
 With ~1e9 samples the estimate typically lands within a few 1e-4 of π. In the Dask dashboard — the link
-is under Compute -> Applications (you may have to press the 3 dots to expand) — you can watch the tasks
-being distributed across the worker VMs:
+is under Compute -> Applications (you may have to press the 3 dots to expand), or the
+`http://HOST:8787` address the scheduler printed — you can watch the tasks being distributed across the
+worker VMs:
 ![Dask Dashboard](dask_dashboard.png)
 
-Once you are done, shut the Dask controller and all of its workers down. This finalizes the jobs and
-deallocates the worker VMs so you stop paying for them:
+## 4. Tear down
+
+When you are done, disconnect the client and stop the worker session. `dask-down` cancels every worker
+pool tagged with the session id; the AmlCompute nodes then go idle and scale to zero, so you stop paying
+for them:
+```python
+client.close()   # in the notebook
 ```
-client.shutdown()
+```bash
+dask-down --session pi-demo    # terminal 2
 ```
+Finally, stop the scheduler by pressing `Ctrl-C` in terminal 1.
