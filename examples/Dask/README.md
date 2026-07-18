@@ -118,3 +118,53 @@ client.close()   # in the notebook
 dask-down --session pi-demo    # terminal 2
 ```
 Finally, stop the scheduler by pressing `Ctrl-C` in terminal 1.
+
+## Driving it remotely (no CI terminal): `sbatch` scheduler + `srun` client
+
+The workflow above assumes you have terminals open *on* the Compute Instance. You can also drive the
+whole thing from a workstation that only has the amlhpc CLI and `az` login (no VNet access, no IMDS) by
+running the scheduler and client *as jobs on the CI* — they share the CI network namespace, so the
+scheduler still binds the CI's VNet-private IP and the client can reach it and the workers.
+
+First find the CI's private IP (jobs on the CI see it via IMDS):
+```bash
+srun --wrap="curl -s -H Metadata:true 'http://169.254.169.254/metadata/instance/network/interface/0/ipv4/ipAddress/0/privateIpAddress?api-version=2021-02-01&format=text'"
+az ml job stream -n <job-name>    # prints the IP, e.g. 10.0.1.4
+```
+
+**Scheduler — submit to the login CI partition.** The default `amlhpc-ubuntu2204` environment does not
+ship dask, so pip-install it in the job. The `dask` console script lands in `~/.local/bin`, which is
+**not** on the job's PATH — you must add it or `dask scheduler` fails with `exec: dask: not found`:
+```bash
+sbatch -p <login-ci-partition> --wrap="pip install -q dask distributed; \
+  export PATH=\"\$(python -m site --user-base)/bin:\$PATH\"; \
+  exec dask scheduler --host 10.0.1.4 --port 8786 --no-dashboard"
+az ml job stream -n <sched-job>   # wait for 'Scheduler at: tcp://10.0.1.4:8786' and note the distributed version
+```
+Use `sinfo` to get the `<login-ci-partition>` name (e.g. `login-ho7iiyqefiygoz`). The scheduler job
+stays *Running*; leave it up.
+
+**Workers — same as before**, but pin `--distributed-version` to the scheduler's version (your
+workstation has no `distributed` to auto-detect):
+```bash
+dask-up -p f4s -s tcp://10.0.1.4:8786 --session pi-demo -N 4 --distributed-version 2026.7.1
+```
+
+**Client — run via `srun`.** `srun`'s script-mode uploads the file read-only, so `chmod +x` fails;
+drive the client through `--wrap` instead, base64-injecting the Python so quoting is safe:
+```bash
+B64=$(base64 -w0 client.py)
+srun --wrap="pip install -q dask==2026.7.1 distributed==2026.7.1; echo $B64 | base64 -d > /tmp/c.py; python /tmp/c.py"
+az ml job stream -n <client-job>   # watch it connect and print the pi estimate
+```
+where `client.py` connects with `Client("tcp://10.0.1.4:8786")`, calls `client.wait_for_workers(1)`,
+then runs the same Monte Carlo submit/gather as in section 3.
+
+**Teardown** is identical, plus cancel the scheduler job (there is no terminal to `Ctrl-C`):
+```bash
+dask-down --session pi-demo
+az ml job cancel -n <sched-job>
+```
+
+This exact sequence was validated end-to-end: a worker on the `f4s` cluster computed
+π ≈ 3.14151 (error 7.9e-05) over ~1e9 samples, with the scheduler and client running as CI jobs.
