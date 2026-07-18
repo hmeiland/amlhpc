@@ -16,6 +16,9 @@ compute manager; amlhpc is the muscle memory on top of it.
  sinfo              ->  compute.list()               ->  workspace computes
  squeue / qstat     ->  jobs.list()                  ->  workspace job history
  scancel / qdel     ->  jobs.begin_cancel(id)        ->  workspace job
+ sacct              ->  jobs.get(id)                 ->  single job status + times
+ sstat              ->  Azure Monitor metrics query  ->  node CPU/mem utilization
+ sattach            ->  jobs.stream / jobs.download  ->  job log (follow or one-shot)
  deploy init        ->  az deployment group create   ->  Bicep template (whole workspace)
  deploy partition   ->  compute.begin_create_or_update -> new AmlCompute cluster
  deploy config      ->  datastores.get + blob upload ->  workspaceblobstore/amlhpc/*.sh
@@ -33,7 +36,7 @@ primitives:
 
 | Dialect | Commands | AML operation |
 | --- | --- | --- |
-| Slurm | `sbatch`, `srun`, `sinfo`, `squeue`, `scancel` | jobs + computes |
+| Slurm | `sbatch`, `srun`, `sinfo`, `squeue`, `scancel`, `sacct`, `sstat`, `sattach` | jobs + computes + metrics |
 | PBS | `qsub`, `qstat`, `qdel` | jobs (qsub is a front-end for sbatch) |
 | LSF | `bsub`, `bjobs`, `bkill` | jobs (bsub is a front-end for sbatch) |
 

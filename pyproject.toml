@@ -12,6 +12,7 @@ dependencies = [
     "azure-identity>=1.17.0,<2.0.0",
     "azure-storage-blob>=12.19.0,<13.0.0",
     "requests>=2.33.0,<3.0.0",
+    "azure-monitor-query>=1.4.0,<2.0.0",
     # Security floors for transitive dependencies (Dependabot high-severity alerts).
     # These patched releases require Python >=3.10, hence the requires-python bump above.
     "cryptography>=48.0.1",  # GHSA-537c-gmf6-5ccf (vulnerable OpenSSL in wheels)
@@ -29,6 +30,9 @@ srun = "amlhpc.slurm.srun:srun"
 sinfo = "amlhpc.slurm.sinfo:sinfo"
 squeue = "amlhpc.slurm.squeue:squeue"
 scancel = "amlhpc.slurm.scancel:scancel"
+sacct = "amlhpc.slurm.sacct:sacct"
+sstat = "amlhpc.slurm.sstat:sstat"
+sattach = "amlhpc.slurm.sattach:sattach"
 qsub = "amlhpc.pbs.qsub:qsub"
 qstat = "amlhpc.pbs.qstat:qstat"
 qdel = "amlhpc.pbs.qstat:qdel"

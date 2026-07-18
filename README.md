@@ -31,6 +31,9 @@ commands:
   sinfo
   squeue
   scancel
+  sacct
+  sstat
+  sattach
   qsub
   qstat
   qdel
@@ -60,12 +63,13 @@ login-vm        UP      STANDARD_DS12_V2        None
 
 # squeue
 
-Show the queue with historical jobs. squeue does not take any options.
+Show the queue with historical jobs. squeue does not take any options and now
+prints the job STATE (it no longer pauses for a keypress between pages).
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ squeue
 JOBID                           NAME            PARTITION       STATE   TIME
-crimson_root_52y4l9yfjd         sbatch  	f16s
-polite_lock_v8wyc9gnx9          runscript.sh    f16s
+crimson_root_52y4l9yfjd         sbatch  	f16s	Completed
+polite_lock_v8wyc9gnx9          runscript.sh    f16s	Running
 ```
 
 # qstat / bjobs
@@ -94,6 +98,53 @@ qdel: cancellation requested for job 'jolly_card_p6yh0phzxm'
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ scancel wheat_sand_gr2xcdpl2w
 scancel: cancellation requested for job 'wheat_sand_gr2xcdpl2w'
+```
+
+# sacct
+
+Show the status of one or more specific jobs by JOBID. Where `squeue`/`qstat` list every job,
+`sacct` targets the JOBIDs you name and adds the start/end timestamps from the job's lifecycle,
+so it is the quick "is this job done, and how long did it take?" lookup.
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sacct polite_kitten_x3g0kwt9w2
+JOBID                           NAME            PARTITION       STATE           START               END
+polite_kitten_x3g0kwt9w2        polite_kitten_x f4s             Completed       2026-07-18T11:49:45 2026-07-18T12:36:08
+```
+Multiple JOBIDs may be given; a JOBID that does not exist is reported and `sacct` exits non-zero.
+
+# sstat
+
+Show the node CPU/memory utilization for a job over the window it ran. Utilization is an Azure
+Monitor platform metric on the *workspace* resource, so it is **whole-node and not job-scoped**:
+on a shared cluster running several jobs the figures cover the entire node, not just your job.
+By default `sstat` prints the latest sample and the peak; `--history` prints the full per-minute
+series. Requires the `azure-monitor-query` package (installed as a dependency).
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sstat polite_kitten_x3g0kwt9w2
+job polite_kitten_x3g0kwt9w2 node utilization (whole-node, over job window; not job-scoped)
+  CpuUtilizationPercentage: latest avg=84.0%  peak max=84.0% @ 2026-07-18 12:36:00  (49 samples)
+  CpuMemoryUtilizationPercentage: no data
+```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sstat --history polite_kitten_x3g0kwt9w2
+  CpuUtilizationPercentage (avg/max per minute):
+    2026-07-18 11:52:00  avg=2.0%  max=2.0%
+    2026-07-18 11:53:00  avg=3.0%  max=3.0%
+    ...
+```
+
+# sattach
+
+Show or follow the log output of a job by JOBID. By default `sattach` prints the job's `std_log`
+one-shot (handy after a job has finished); with `-f`/`--follow` it streams the log until the job
+completes, like `tail -f`.
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sattach polite_kitten_x3g0kwt9w2
+313/313 - 2s - loss: 0.8838 - accuracy: 0.7076 - 2s/epoch - 6ms/step
+0.7075999975204468
+```
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sattach -f amusing_frame_30vvwy3jc3
 ```
 
 # qsub

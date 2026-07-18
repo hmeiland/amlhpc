@@ -49,5 +49,6 @@ def squeue(vargs=None):
             if len(line) < 49:
                 line += "\t"
             line += "\t" + str(job.compute)
+            line += "\t" + str(getattr(job, "status", "") or "")
             print(line)
-        input("Press Enter to continue...")
+

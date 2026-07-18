@@ -1,8 +1,10 @@
 # using Julia in AML
 
-installation:
+installation (the `apt` package is not available on the Ubuntu 22.04+ compute
+images, so use the official juliaup installer, which is version-independent):
 ```
-sudo apt install julia
+curl -fsSL https://install.julialang.org | sh -s -- --yes
+source ~/.bashrc
 julia -e "using Pkg; Pkg.add(\"IJulia\")"
 ```
 

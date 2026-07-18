@@ -7,6 +7,9 @@ def _commands():
     from .slurm.sinfo import sinfo
     from .slurm.squeue import squeue
     from .slurm.scancel import scancel
+    from .slurm.sacct import sacct
+    from .slurm.sstat import sstat
+    from .slurm.sattach import sattach
     from .pbs.qsub import qsub
     from .pbs.qstat import qstat, qdel
     from .lsf.bjobs import bjobs, bkill
@@ -23,6 +26,9 @@ def _commands():
         'sinfo': sinfo,
         'squeue': squeue,
         'scancel': scancel,
+        'sacct': sacct,
+        'sstat': sstat,
+        'sattach': sattach,
         'qsub': qsub,
         'qstat': qstat,
         'qdel': qdel,
