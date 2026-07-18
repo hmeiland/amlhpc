@@ -6,6 +6,8 @@ Package to provide a -just enough- Slurm or PBS experience on Azure Machine Lear
 jobs and get insight into the state of the HPC system through a familiar way. Allow applications to interact with AML without 
 the need to re-program another integration.
 
+See [architecture.md](architecture.md) for how amlhpc integrates with Azure Machine Learning.
+
 For the commands to function, the following environment variables have to be set:
 ```
 SUBSCRIPTION=<guid of you Azure subscription e.g. 12345678-1234-1234-1234-1234567890ab>
@@ -137,21 +139,35 @@ gifted_engine_yq801rygm2
 ```
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sbatch --help
-usage: sbatch [-h] [-a ARRAY] -p PARTITION [-N NODES] [-w WRAP] [script]
+usage: sbatch [-h] [-a ARRAY] [--container CONTAINER] [--datamover DATAMOVER]
+              [-e ENVIRONMENT] [-N NODES] [-p PARTITION] [-v] [--no-prolog]
+              [-w WRAP]
+              [script]
 
 sbatch: submit jobs to Azure Machine Learning
 
 positional arguments:
-  script                script to be executed
+  script                runscript to be executed
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -a ARRAY, --array ARRAY
                         index for array jobs
-  -p PARTITION, --partition PARTITION
-                        set compute partition where the job should be run. Use <sinfo> to view available partitions
+  --container CONTAINER
+                        container environment for the job to run in
+  --datamover DATAMOVER
+                        use "simple" for moving the (recursive) data along
+                        with the runscript
+  -e ENVIRONMENT, --environment ENVIRONMENT
+                        Azure Machine Learning environment, should be enclosed
+                        in quotes, may use @latest
   -N NODES, --nodes NODES
                         amount of nodes to use for the job
+  -p PARTITION, --partition PARTITION
+                        set compute partition where the job should be run. Use <sinfo> to view available partitions
+  -v, --verbose         provide output on found settings and job properties
+  --no-prolog           skip the site-wide prolog/epilog configured in the
+                        workspace storage stack
   -w WRAP, --wrap WRAP  command line to be executed, should be enclosed with quotes
 ```
 
@@ -166,14 +182,16 @@ stoic_beach_c4jpkltdrl
 ```
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ srun --help
-usage: srun [-h] [--container CONTAINER] [-e ENVIRONMENT] [-p PARTITION] [-v] [-w WRAP] [script]
+usage: srun [-h] [--container CONTAINER] [-e ENVIRONMENT] [-p PARTITION] [-v]
+            [--no-prolog] [-w WRAP]
+            [script]
 
 srun: run jobs on the login ComputeInstance
 
 positional arguments:
   script                runscript to be executed
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --container CONTAINER
                         container image for the job to run in
@@ -181,10 +199,33 @@ optional arguments:
                         Azure Machine Learning environment, may use @latest
   -p PARTITION, --partition PARTITION
                         ComputeInstance to run on. Defaults to auto-discovered login CI. Use <sinfo> to view partitions
+  -v, --verbose         provide output on found settings and job properties
+  --no-prolog           skip the site-wide prolog/epilog configured in the
+                        workspace storage stack
   -w WRAP, --wrap WRAP  command line to be executed, should be enclosed with quotes
 ```
 
 Note: like every AML command job, the command runs inside the environment's container (sharing the CI's
 network namespace, so it sees the CI private IP), not the bare CI host OS.
+
+# site-wide prolog/epilog
+
+An admin can install a site-wide prolog (and optional epilog) once into the workspace storage stack;
+every `sbatch`/`srun` job then runs it automatically as `prolog → ( user command ) → epilog`, so users
+can submit bare application commands without repeating boilerplate (mounting a shared software stack,
+loading a module, sourcing an environment). The user command runs in a subshell, so a failing or
+`exit`-ing command still runs the epilog and its exit code is preserved. Pass `--no-prolog` to opt a
+single job out.
+
+The hooks are managed with `deploy config` (see [deploy/README.md](deploy/README.md)) and live in the
+workspace's default datastore at `workspaceblobstore/amlhpc/{prolog,epilog}.sh` (override the location
+with `AMLHPC_CONFIG_DATASTORE` / `AMLHPC_CONFIG_PREFIX`). A worked EESSI example is in
+[examples/EESSI/readme.md](examples/EESSI/readme.md).
+```
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ deploy config set-prolog prolog.sh
+uploaded site prolog to azureml://datastores/workspaceblobstore/paths/amlhpc/prolog.sh
+(azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ sbatch -p f4s --wrap="simpleFoam"
+gifted_engine_yq801rygm2
+```
 
 If you encounter a scenario or option that is not supported yet or behaves unexpected, please create an issue and explain the option and the scenario.

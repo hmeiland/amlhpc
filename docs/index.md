@@ -37,5 +37,6 @@ as a subcommand of the unified `amlhpc` entry point, so `amlhpc sbatch ...` is e
 commands
 data
 dask
+architecture
 examples
 ```

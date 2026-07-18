@@ -35,6 +35,23 @@ deploy partition -n f4s -s Standard_F4s_v2 --max-nodes 5
 deploy partition -n hb --size Standard_HB120rs_v3 --min-nodes 0 --max-nodes 8 --priority LowPriority
 ```
 
+Manage the site-wide prolog/epilog stored in the workspace storage stack. These hooks are
+run by every `sbatch`/`srun` job (as `prolog → ( user command ) → epilog`), so users can
+submit bare application commands. They live in the workspace's default datastore at
+`workspaceblobstore/amlhpc/{prolog,epilog}.sh` (override with `AMLHPC_CONFIG_DATASTORE` /
+`AMLHPC_CONFIG_PREFIX`). Requires `SUBSCRIPTION`, `CI_RESOURCE_GROUP` and `CI_WORKSPACE`:
+
+```bash
+deploy config set-prolog prolog.sh    # upload a shell snippet as the site prolog
+deploy config set-epilog epilog.sh    # upload a shell snippet as the site epilog
+deploy config show                    # print the current prolog and epilog
+deploy config clear-prolog            # remove the site prolog
+deploy config clear-epilog            # remove the site epilog
+```
+
+Individual jobs opt out with `sbatch --no-prolog` / `srun --no-prolog`. A worked EESSI
+example is in [examples/EESSI/readme.md](../examples/EESSI/readme.md).
+
 ## Manual deployment (az CLI)
 
 ```bash
