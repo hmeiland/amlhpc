@@ -61,6 +61,7 @@ def srun(vargs=None):
     parser.add_argument('-p', '--partition', default="None", type=str,
                         help='ComputeInstance to run on. Defaults to auto-discovered login CI. Use <sinfo> to view partitions')
     parser.add_argument('-v', '--verbose', action='count', default=0, help='provide output on found settings and job properties')
+    parser.add_argument('--no-prolog', action='store_true', help='skip the site-wide prolog/epilog configured in the workspace storage stack')
     parser.add_argument('-w', '--wrap', type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
@@ -120,6 +121,10 @@ def srun(vargs=None):
         if (args.verbose):
             print("no script to be uploaded.")
             print("initial command (through wrapped script): " + job_command)
+
+    from amlhpc.config import apply_site_hooks
+    job_command = apply_site_hooks(ml_client, job_command,
+                                   enabled=not args.no_prolog, verbose=args.verbose)
 
     command_job = command(
         code=job_code,

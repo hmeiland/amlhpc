@@ -10,6 +10,7 @@ authors = [
 dependencies = [
     "azure-ai-ml>=1.34.0,<2.0.0",
     "azure-identity>=1.17.0,<2.0.0",
+    "azure-storage-blob>=12.19.0,<13.0.0",
     "requests>=2.33.0,<3.0.0",
     # Security floors for transitive dependencies (Dependabot high-severity alerts).
     # These patched releases require Python >=3.10, hence the requires-python bump above.

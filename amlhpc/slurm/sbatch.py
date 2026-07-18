@@ -63,6 +63,7 @@ def sbatch(vargs=None):
                         help='set compute partition where the job should be run. Use <sinfo> to view available partitions')
     #parser.add_argument('--parallel', default="single", type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('-v', '--verbose', action='count', default=0,  help='provide output on found settings and job properties')
+    parser.add_argument('--no-prolog', action='store_true', help='skip the site-wide prolog/epilog configured in the workspace storage stack')
     parser.add_argument('-w', '--wrap', type=str, help='command line to be executed, should be enclosed with quotes')
     parser.add_argument('script', nargs='?', default="None", type=str, help='runscript to be executed')
     args = parser.parse_args(vargs)
@@ -219,6 +220,11 @@ def sbatch(vargs=None):
         job_env["SLURM_JOB_NUM_NODES"] = max_nodes
         args.parallel="sweepjob"
     
+    # Site-wide prolog/epilog from workspaceblobstore/amlhpc/, applied to every job unless --no-prolog.
+    from amlhpc.config import apply_site_hooks
+    job_command = apply_site_hooks(ml_client, job_command,
+                                   enabled=not args.no_prolog, verbose=args.verbose)
+
     if (args.parallel == "sweep"):
         command_job = command(
             code=job_code,

@@ -45,6 +45,31 @@ ml load OpenFOAM; source $FOAM_BASH; simpleFoam -help'
 On the compute node `archdetect` picks the node's own micro-architecture (e.g.
 `x86_64/intel/skylake_avx512` on an `f4s`), so the optimised build for that partition is used.
 
+
+## Site-wide prolog/epilog: submit bare application commands
+
+Wiring the cvmfs mount and module load into every `--wrap` is repetitive. An admin can install
+a **site prolog** (and optional epilog) once into the workspace storage stack; every `sbatch`/`srun`
+job then runs it automatically before the user command, so users submit the bare application:
+```
+sbatch -p f4s --wrap='simpleFoam -help'
+```
+
+Install the hooks from the login node (stored in `workspaceblobstore/amlhpc/{prolog,epilog}.sh`):
+```
+cat > prolog.sh <<'EOF'
+sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io
+source /cvmfs/software.eessi.io/versions/2023.06/init/bash
+ml load OpenFOAM
+source $FOAM_BASH
+EOF
+deploy config set-prolog prolog.sh
+deploy config show
+```
+Every job is wrapped as `prolog → ( user command ) → epilog`; the user command runs in a subshell
+so a failing/`exit`-ing command still runs the epilog and its exit code is preserved. Pass
+`--no-prolog` to `sbatch`/`srun` to opt a single job out. Remove with `deploy config clear-prolog`.
+
 alternativly, you can also use the same docker container as through which the jobs are running:
 ```
 docker run -ti --privileged -v `pwd`:/app  docker.io/hmeiland/amlhpc-ubuntu2004 bash

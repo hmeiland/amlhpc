@@ -36,12 +36,18 @@ def deploy(vargs=None):
     partition_parser.add_argument('--idle-time', default=120, type=int, help='seconds a node stays idle before scaling down (default: 120)')
     partition_parser.add_argument('--priority', default='Dedicated', choices=['Dedicated', 'LowPriority'], help='VM priority tier (default: Dedicated)')
 
+    config_parser = subparsers.add_parser('config', help='manage the site-wide prolog/epilog stored in the workspace storage stack')
+    config_parser.add_argument('action', choices=['set-prolog', 'set-epilog', 'show', 'clear-prolog', 'clear-epilog'], help='set-* uploads a snippet from FILE; show prints current hooks; clear-* removes one')
+    config_parser.add_argument('file', nargs='?', default=None, help='shell snippet file to upload (required for set-prolog/set-epilog)')
+
     args = parser.parse_args(vargs)
 
     if args.subcommand == 'init':
         deploy_init(args)
     elif args.subcommand == 'partition':
         deploy_partition(args)
+    elif args.subcommand == 'config':
+        deploy_config(args)
 
 
 def resolve_template(template):
@@ -143,3 +149,68 @@ def deploy_partition(args):
         )
     returned_partition = ml_client.compute.begin_create_or_update(partition).result()
     print(returned_partition.name + "\t" + returned_partition.size + "\t" + str(returned_partition.max_instances))
+
+
+def config_ml_client():
+    import os
+
+    try:
+        subscription_id = os.environ['SUBSCRIPTION']
+        resource_group = os.environ['CI_RESOURCE_GROUP']
+        workspace_name = os.environ['CI_WORKSPACE']
+    except Exception:
+        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
+        exit(-1)
+
+    from azure.ai.ml import MLClient
+    from azure.identity import DefaultAzureCredential
+
+    import logging
+    logging.getLogger('azure.ai.ml._utils').setLevel(logging.CRITICAL)
+
+    try:
+        on_aml = os.environ['APPSETTING_WEBSITE_SITE_NAME']
+        if (on_aml == 'AMLComputeInstance'):
+            credential = mlComputeAuth()
+    except Exception:
+        credential = DefaultAzureCredential()
+
+    return MLClient(
+        credential=credential,
+        subscription_id=subscription_id,
+        resource_group_name=resource_group,
+        workspace_name=workspace_name,
+        enable_telemetry=False,
+        )
+
+
+def deploy_config(args):
+    from amlhpc import config
+
+    ml_client = config_ml_client()
+    datastore, prefix = config.config_location()
+
+    if args.action in ('set-prolog', 'set-epilog'):
+        if not args.file:
+            print("Missing: " + args.action + " requires a FILE holding the shell snippet")
+            exit(-1)
+        with open(args.file) as snippet:
+            text = snippet.read()
+        kind = 'prolog' if args.action == 'set-prolog' else 'epilog'
+        uri = config.set_site_hook(ml_client, kind, text)
+        print("uploaded site " + kind + " to " + uri)
+        return
+
+    if args.action in ('clear-prolog', 'clear-epilog'):
+        kind = 'prolog' if args.action == 'clear-prolog' else 'epilog'
+        removed = config.clear_site_hook(ml_client, kind)
+        print(("removed" if removed else "no") + " site " + kind +
+              " in " + datastore + "/" + prefix)
+        return
+
+    prolog, epilog = config.load_site_hooks(ml_client)
+    print("site config datastore: " + datastore + ", prefix: " + prefix)
+    for kind, text in (("prolog", prolog), ("epilog", epilog)):
+        print("\n===== " + kind + " =====")
+        print(text if text else "(none)")
+
