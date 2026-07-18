@@ -61,28 +61,25 @@ hbv2            UP      STANDARD_HB120RS_V2     4
 login-vm        UP      STANDARD_DS12_V2        None
 ```
 
-# squeue
+# squeue / qstat / bjobs
 
-Show the queue with historical jobs. squeue does not take any options and now
-prints the job STATE (it no longer pauses for a keypress between pages).
+Show the queue with historical jobs, including the job STATE. `squeue` is the Slurm front-end;
+`qstat` (PBS) and `bjobs` (LSF) are the same listing for users with different scheduler muscle
+memory. All three are backed by the same Azure Machine Learning job list and take no options
+(`squeue` no longer pauses for a keypress between pages). `squeue` additionally prints a TIME
+column; `qstat`/`bjobs` produce otherwise identical output.
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ squeue
 JOBID                           NAME            PARTITION       STATE   TIME
 crimson_root_52y4l9yfjd         sbatch  	f16s	Completed
 polite_lock_v8wyc9gnx9          runscript.sh    f16s	Running
 ```
-
-# qstat / bjobs
-
-Job-control listing for the PBS (`qstat`) and LSF (`bjobs`) users. Both are backed by the same
-Azure Machine Learning job list as `squeue`, but add the job STATE column. Neither takes any options.
 ```
 (azureml_py38) azureuser@login-vm:~/cloudfiles/code/Users/username$ qstat
 JOBID                           NAME            PARTITION       STATE
 jolly_card_p6yh0phzxm           jolly_card_p6yh login-5n2kkmvhk Completed
 cool_pig_mwhdcjs72n             localtest-f4s   f4s             Failed
 ```
-`bjobs` produces identical output; use whichever matches your scheduler muscle memory.
 
 # qdel / bkill / scancel
 

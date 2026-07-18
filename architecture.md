@@ -94,6 +94,52 @@ on the login node itself — notably bringing up a Dask scheduler — without ne
 AML command job, the command still runs inside the environment's container sharing the CI's network
 namespace, not on the bare CI host OS.
 
+## GUI / VDI access (the login ComputeInstance as a desktop)
+
+Because amlhpc is a stateless client (see *Design notes*), a "VDI" is nothing more than an
+authenticated amlhpc client that happens to have a graphical surface. The login node that
+`deploy init` already creates is an AML **ComputeInstance**, and a ComputeInstance is exactly
+that surface: it runs the CLI, it already holds the managed identity with Contributor on the
+resource group, and the Bicep bakes `SUBSCRIPTION` into `/etc/profile.d/amlhpc.sh` — so
+`sbatch`/`squeue`/`sinfo` work from it with no interactive login. Turning it into a GUI
+workstation is therefore a matter of *reaching* it graphically, not of new integration.
+
+- **Built-in browser apps (no extra deploy).** Every AML ComputeInstance publishes JupyterLab,
+  Jupyter, VS Code (browser + desktop), RStudio/Posit and an in-browser terminal, brokered
+  through the AML studio over HTTPS — no public IP, no inbound port, no SSH. Opening a terminal
+  or a Jupyter notebook on the login CI and running `sbatch …` is the zero-cost VDI: the job is
+  submitted from a GUI, authenticated by the CI's MSI, exactly like `srun` does today. This is
+  the recommended entry point and needs only documentation, not code.
+- **Full graphical desktop (custom application).** For GUI applications that are not a notebook or
+  editor (a native pre/post-processor such as ParaView, a graphical file manager, a browser),
+  a ComputeInstance can host a **custom application**: a container image, referenced from the CI's
+  `applications` block, that AML reverse-proxies over the same authenticated HTTPS channel. A
+  noVNC/XFCE (or KASM) desktop image exposed on its bound port gives a full Linux desktop in the
+  browser tab. amlhpc is `pip install`-ed into the image (or mounted from the CI), so a terminal
+  inside that desktop submits jobs through the same identity. This is additive: a `desktopApp`
+  entry on `amlLoginVM` in
+  [`amlhpc/templates/amlhpc_simple.bicep`](amlhpc/templates/amlhpc_simple.bicep), or a separate
+  larger "workstation" ComputeInstance created alongside the small login CI.
+
+- **Why not a Windows/AVD host by default.** A Windows desktop is possible — an AVD session host or
+  an IaaS VM in the `cluster` subnet, given a managed identity with Contributor on the RG and
+  `pip install amlhpc` + the Azure CLI — and from it the same commands submit jobs. But it is a
+  separate, self-managed resource outside the workspace's identity/networking story: it needs its
+  own RBAC grant, its own patching, and Bastion or the AVD gateway for access, whereas the
+  ComputeInstance route inherits all of that from `deploy init`. Reach for a Windows VDI only when
+  a genuinely Windows-only GUI tool is required; otherwise the login CI desktop is strictly less
+  to operate.
+
+The identity model is unchanged in every case: **system-assigned managed identity + Contributor on
+the resource group** (the `roleAssignment` the Bicep already creates for the login CI). The GUI
+session authenticates through `DefaultAzureCredential` / the CI MSI just like the CLI, so no keys,
+secrets or per-user service principals are introduced. Multi-user attribution, if needed, is the
+one case that argues for interactive `az login` per user (each user needs their own AML RBAC on the
+workspace) instead of the shared CI identity.
+
+A worked walk-through (built-in apps + a noVNC desktop application) is in
+[examples/VDI/readme.md](examples/VDI/readme.md).
+
 ## Site-wide prolog/epilog (`deploy config`)
 
 amlhpc keeps optional site-wide *prolog* and *epilog* shell snippets in the workspace's default
