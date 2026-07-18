@@ -32,6 +32,19 @@ source $FOAM_BASH
 ```
 
 
+## Running EESSI applications as amlhpc jobs
+
+The same cvmfs mount works inside the compute jobs themselves: the `amlhpc-ubuntu2004`
+job container runs privileged with FUSE, so a job can mount EESSI, load a module and run
+the application on the AmlCompute node. Submit the whole flow with `sbatch --wrap`:
+```
+sbatch -p f4s --wrap='sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io; \
+source /cvmfs/software.eessi.io/versions/2023.06/init/bash; \
+ml load OpenFOAM; source $FOAM_BASH; simpleFoam -help'
+```
+On the compute node `archdetect` picks the node's own micro-architecture (e.g.
+`x86_64/intel/skylake_avx512` on an `f4s`), so the optimised build for that partition is used.
+
 alternativly, you can also use the same docker container as through which the jobs are running:
 ```
 docker run -ti --privileged -v `pwd`:/app  docker.io/hmeiland/amlhpc-ubuntu2004 bash
