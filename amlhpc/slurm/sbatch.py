@@ -114,9 +114,12 @@ def sbatch(vargs=None):
     if (args.verbose): print("using environment: " + args.environment) 
 
     if (args.script != "None"):
-        start_command = "chmod +x " + args.script + "; "
+        # The uploaded code directory is mounted read-only, so "chmod +x" fails
+        # ("Operation not permitted") and a bare script name is not on PATH.
+        # Run it through bash with an explicit ./ path: no execute bit or PATH
+        # lookup needed, and the script's shebang is still honoured.
         job_code = pwd + "/" + args.script
-        job_command = start_command + args.script
+        job_command = "bash ./" + args.script
         if (args.verbose): 
             print("provided script to be executed: " + job_code) 
             print("provided script to be uploaded: " + job_code) 
