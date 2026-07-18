@@ -6,7 +6,7 @@ To access EESSI on your login vm, as root:
 ```
 wget --no-check-certificate https://ecsft.cern.ch/dist/cvmfs/cvmfs-release/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb
 apt-get update && apt-get install -y cvmfs
-wget https://github.com/EESSI/filesystem-layer/releases/download/v0.5.0/cvmfs-config-eessi_0.5.0_all.deb && dpkg -i cvmfs-config-eessi_0.5.0_all.deb
+wget https://github.com/EESSI/filesystem-layer/releases/download/v0.6.0/cvmfs-config-eessi_0.6.0_all.deb && dpkg -i cvmfs-config-eessi_0.6.0_all.deb
 echo 'CVMFS_CLIENT_PROFILE="single"' > /etc/cvmfs/default.local
 echo 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local
 echo 'CVMFS_REPOSITORIES=cms.cern.ch,pilot.eessi-hpc.org,software.eessi.io' >> /etc/cvmfs/default.local
