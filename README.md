@@ -1,5 +1,7 @@
 # amlhpc
 
+📖 Full documentation: https://amlhpc.readthedocs.io/en/latest/index.html
+
 Package to provide a -just enough- Slurm or PBS experience on Azure Machine Learning. Use the infamous sbatch/qsub/sinfo to submit
 jobs and get insight into the state of the HPC system through a familiar way. Allow applications to interact with AML without 
 the need to re-program another integration.
