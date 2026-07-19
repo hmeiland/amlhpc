@@ -23,7 +23,7 @@ def sbatch(vargs=None):
         print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
         exit(-1)
 
-    pwd = os.environ['PWD']
+    pwd = os.environ.get('PWD', os.getcwd())
 
     from azure.ai.ml import MLClient, Output, Input, command
     from azure.identity import DefaultAzureCredential
