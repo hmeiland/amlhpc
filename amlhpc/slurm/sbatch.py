@@ -15,13 +15,15 @@ class mlComputeAuth:
 def sbatch(vargs=None):
     import os
 
+    from ..context import ConnectionNotConfigured, resolve_connection
     try:
-        subscription_id = os.environ['SUBSCRIPTION']
-        resource_group = os.environ['CI_RESOURCE_GROUP']
-        workspace_name = os.environ['CI_WORKSPACE']
-    except Exception as error:
-        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
+        conn = resolve_connection()
+    except ConnectionNotConfigured as error:
+        print(error.message)
         exit(-1)
+    subscription_id = conn.subscription
+    resource_group = conn.resource_group
+    workspace_name = conn.workspace
 
     pwd = os.environ.get('PWD', os.getcwd())
 
