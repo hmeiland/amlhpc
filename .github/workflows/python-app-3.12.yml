@@ -40,3 +40,6 @@ jobs:
     - name: Install with Poetry 
       run: |
         poetry install
+    - name: Test with pytest
+      run: |
+        poetry run pytest --cov=amlhpc --cov-report=term-missing
