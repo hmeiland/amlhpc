@@ -234,6 +234,7 @@ def deploy_partition(args):
     from azure.identity import DefaultAzureCredential
     from azure.ai.ml.entities import AmlCompute
 
+    import os
     import logging
     logging.getLogger('azure.ai.ml._utils').setLevel(logging.CRITICAL)
 
