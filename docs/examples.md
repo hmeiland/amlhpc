@@ -12,6 +12,7 @@ repository contains end-to-end walkthroughs for running real HPC and AI workload
 | [GROMACS](https://github.com/hmeiland/amlhpc/tree/main/examples/GROMACS) | Multi-node GROMACS molecular dynamics with monitoring. |
 | [OpenFOAM](https://github.com/hmeiland/amlhpc/tree/main/examples/OpenFOAM) | CFD simulations with OpenFOAM. |
 | [openfoamAI](https://github.com/hmeiland/amlhpc/tree/main/examples/openfoamAI) | OpenFOAM combined with an FNO surrogate model. |
+| [OSU](https://github.com/hmeiland/amlhpc/tree/main/examples/OSU) | Verify the HB-series InfiniBand interconnect with OSU latency/bandwidth micro-benchmarks. |
 | [QuantumESPRESSO](https://github.com/hmeiland/amlhpc/tree/main/examples/QuantumESPRESSO) | Electronic-structure calculations with Quantum ESPRESSO. |
 | [TensorFlow](https://github.com/hmeiland/amlhpc/tree/main/examples/TensorFlow) | Train a CIFAR model with TensorFlow. |
 | [devito](https://github.com/hmeiland/amlhpc/tree/main/examples/devito) | Seismic imaging (RTM / radon) with Devito. |
