@@ -248,3 +248,6 @@ resource ml_cust_env 'Microsoft.MachineLearningServices/workspaces/environments/
     autoRebuild: 'OnBaseImageUpdate'
   }  
 }  
+
+output workspaceName string = workspaceName
+

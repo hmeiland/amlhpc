@@ -69,8 +69,36 @@ def resolve_template(template):
     return tmp.name, tmp.name
 
 
+def write_cluster_profile(name, subscription_id, resource_group, workspace_name):
+    """Write ~/.amlhpc/<name>.sh with the exports needed to return to this cluster.
+
+    Sourcing the file (`source ~/.amlhpc/<name>.sh`) restores SUBSCRIPTION,
+    CI_RESOURCE_GROUP and CI_WORKSPACE so sbatch/dask-*/deploy partition work
+    against the cluster again after coming back to it.
+    """
+    import os
+
+    profile_dir = os.path.join(os.path.expanduser("~"), ".amlhpc")
+    os.makedirs(profile_dir, exist_ok=True)
+    profile_path = os.path.join(profile_dir, name + ".sh")
+
+    with open(profile_path, "w") as profile:
+        profile.write("# amlhpc cluster profile for '" + name + "'\n")
+        profile.write("# source this file to return to the cluster: source " + profile_path + "\n")
+        profile.write("export SUBSCRIPTION=" + subscription_id + "\n")
+        profile.write("export CI_RESOURCE_GROUP=" + resource_group + "\n")
+        profile.write("export CI_WORKSPACE=" + workspace_name + "\n")
+        profile.write("# site-wide prolog/epilog live in the storage stack at <datastore>/<prefix>/{prolog,epilog}.sh\n")
+        profile.write("export AMLHPC_CONFIG_DATASTORE=workspaceblobstore\n")
+        profile.write("export AMLHPC_CONFIG_PREFIX=amlhpc\n")
+
+    os.chmod(profile_path, 0o600)
+    return profile_path
+
+
 def deploy_init(args):
     import os
+    import json
     import shutil
     import subprocess
 
@@ -80,10 +108,15 @@ def deploy_init(args):
 
     template, tmp_template = resolve_template(args.template)
 
-    subprocess.run(["az", "group", "create", "--name", args.resource_group, "--location", args.location], check=True)
+    # Resolve az to its full path: on Windows it is `az.cmd`, which a bareword
+    # "az" cannot launch via subprocess (no shell).
+    az = shutil.which('az')
 
-    deploy_command = ["az", "deployment", "group", "create",
+    subprocess.run([az, "group", "create", "--name", args.resource_group, "--location", args.location], check=True)
+
+    deploy_command = [az, "deployment", "group", "create",
                       "--resource-group", args.resource_group,
+                      "--name", "amlhpc-" + args.name,
                       "--template-file", template,
                       "--parameters", "name=" + args.name]
 
@@ -99,11 +132,29 @@ def deploy_init(args):
 
     if args.what_if:
         deploy_command.append("--what-if")
+        try:
+            subprocess.run(deploy_command, check=True)
+        finally:
+            if tmp_template is not None:
+                os.remove(tmp_template)
+        return
+
+    deploy_command += ["--output", "json"]
     try:
-        subprocess.run(deploy_command, check=True)
+        result = subprocess.run(deploy_command, check=True, capture_output=True, text=True)
     finally:
         if tmp_template is not None:
             os.remove(tmp_template)
+
+    print(result.stdout)
+
+    deployment = json.loads(result.stdout)
+    workspace_name = deployment["properties"]["outputs"]["workspaceName"]["value"]
+    subscription_id = deployment["id"].split("/")[2]
+
+    profile_path = write_cluster_profile(args.name, subscription_id, args.resource_group, workspace_name)
+    print("wrote cluster profile: " + profile_path)
+    print("return to this cluster later with: source " + profile_path)
 
 
 def deploy_partition(args):

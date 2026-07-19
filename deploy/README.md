@@ -14,6 +14,15 @@ deploy init -g amlhpc -l "centralus" -n amlhpc
 amlhpc deploy init -g amlhpc --what-if      # preview only, creates nothing
 ```
 
+On a successful `init` (not `--what-if`), a cluster profile is written to
+`~/.amlhpc/<name>.sh` holding the `SUBSCRIPTION`, `CI_RESOURCE_GROUP` and
+`CI_WORKSPACE` exports for the new workspace. Coming back to the cluster later,
+source it to restore the environment `sbatch`/`dask-*`/`deploy partition` need:
+
+```bash
+source ~/.amlhpc/amlhpc.sh
+```
+
 By default the login ComputeInstance has public SSH disabled (work from its
 Jupyter/terminal, where the CI's managed identity authenticates automatically).
 To enable public SSH — e.g. to drive the CI remotely for troubleshooting — pass a

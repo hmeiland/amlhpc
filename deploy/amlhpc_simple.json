@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "10381900482503030870"
+      "templateHash": "9805727260010962909"
     }
   },
   "parameters": {
@@ -290,5 +290,11 @@
         "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
       ]
     }
-  ]
+  ],
+  "outputs": {
+    "workspaceName": {
+      "type": "string",
+      "value": "[variables('workspaceName')]"
+    }
+  }
 }
