@@ -1,6 +1,47 @@
 import sys
 
 
+def _use(vargs):
+    import argparse
+
+    from .context import ConnectionNotConfigured, use_profile
+
+    parser = argparse.ArgumentParser(
+        prog='amlhpc use', description='switch the current cluster profile')
+    parser.add_argument('name', help='name of the cluster profile to make current')
+    args = parser.parse_args(vargs)
+    try:
+        profile = use_profile(args.name)
+    except ConnectionNotConfigured as error:
+        print(error.message)
+        return -1
+    print("switched current cluster to '" + args.name + "' ("
+          + profile['workspace'] + ')')
+    return 0
+
+
+def _clusters(vargs):
+    import argparse
+
+    from .context import load_config
+
+    parser = argparse.ArgumentParser(
+        prog='amlhpc clusters', description='list registered cluster profiles')
+    parser.parse_args(vargs)
+    config = load_config()
+    clusters = config['clusters']
+    if not clusters:
+        print("no cluster profiles yet; add one with 'deploy connect' or 'deploy init'")
+        return 0
+    current = config['current']
+    print('CURRENT  NAME            WORKSPACE')
+    for name in sorted(clusters):
+        marker = '*' if name == current else ' '
+        print('   ' + marker + '     ' + name.ljust(15) + ' '
+              + clusters[name]['workspace'])
+    return 0
+
+
 def _commands():
     from .slurm.sbatch import sbatch
     from .slurm.srun import srun
@@ -40,6 +81,8 @@ def _commands():
         'dask-scheduler-up': dask_scheduler_up,
         'dask-up': dask_up,
         'dask-down': dask_down,
+        'use': _use,
+        'clusters': _clusters,
     }
 
 
