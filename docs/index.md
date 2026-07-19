@@ -34,6 +34,7 @@ as a subcommand of the unified `amlhpc` entry point, so `amlhpc sbatch ...` is e
 :maxdepth: 2
 :caption: Contents
 
+getting-started
 commands
 data
 dask
