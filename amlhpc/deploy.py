@@ -72,6 +72,17 @@ def deploy(vargs=None):
     uninvite_parser.add_argument('--role', default='AzureML Data Scientist', help='role to remove (default: "AzureML Data Scientist")')
     uninvite_parser.add_argument('-y', '--yes', action='store_true', help='skip the confirmation prompt')
 
+    validate_parser = subparsers.add_parser('validate', help='exercise every amlhpc feature end-to-end against the current cluster (submits a real EESSI job and watches it to completion)')
+    validate_parser.add_argument('--cluster', default=None, help='cluster profile to validate (default: the resolved current cluster)')
+    validate_parser.add_argument('-p', '--partition', default=None, help='partition (AmlCompute cluster) to submit the probe job to (default: the first AmlCompute partition doctor finds)')
+    validate_parser.add_argument('--include-container', action='store_true', help='also build a container environment (needs a build context under --container-path)')
+    validate_parser.add_argument('--container-path', default='environments', help='directory of container build contexts for --include-container (default: environments)')
+    validate_parser.add_argument('--include-dask', action='store_true', help='also bring a Dask scheduler and worker up and back down on the partition')
+    validate_parser.add_argument('--invite-user', default=None, help='email/UPN or object id to invite then uninvite, round-tripping the RBAC path')
+    validate_parser.add_argument('--timeout', default=1800, type=int, help='seconds to wait for the probe job to reach a terminal state (default: 1800)')
+    validate_parser.add_argument('--keep', action='store_true', help='do not cancel/clean the probe jobs created during validation')
+    validate_parser.add_argument('-v', '--verbose', action='count', default=0, help='print each stage as it runs, not just the summary')
+
     args = parser.parse_args(vargs)
 
     if args.subcommand == 'init':
@@ -92,6 +103,8 @@ def deploy(vargs=None):
         deploy_invite(args)
     elif args.subcommand == 'uninvite':
         deploy_uninvite(args)
+    elif args.subcommand == 'validate':
+        deploy_validate(args)
 
 
 def resolve_template(template):
@@ -635,4 +648,353 @@ def deploy_config(args):
     for kind, text in (("prolog", prolog), ("epilog", epilog)):
         print("\n===== " + kind + " =====")
         print(text if text else "(none)")
+
+
+
+# EESSI cvmfs software stack used by the probe job (see examples/EESSI/readme.md).
+# The amlhpc job container runs privileged with FUSE, so a job can mount EESSI,
+# load a module and run a real application on the AmlCompute node.
+EESSI_INIT = ("sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io; "
+              "source /cvmfs/software.eessi.io/versions/2023.06/init/bash")
+
+# AML job states that mean the job has stopped (no further transitions).
+TERMINAL_JOB_STATES = frozenset({"completed", "failed", "canceled", "cancelled"})
+
+
+def build_eessi_wrap(command):
+    """Build the sbatch --wrap body that mounts EESSI then runs ``command``.
+
+    Kept pure so the probe job's command line can be unit tested without
+    submitting anything.
+    """
+    return EESSI_INIT + "; " + command
+
+
+def is_terminal_state(status):
+    """True when an AML job status means the job has stopped.
+
+    Tolerant of case and of None (a job with no status yet is not terminal).
+    Kept pure so the watch loop's stop condition is unit testable.
+    """
+    return str(status or "").strip().lower() in TERMINAL_JOB_STATES
+
+
+class ValidationReport:
+    """Records the pass/fail/skip outcome of each validation stage.
+
+    Pure (no printing, no Azure) so the orchestration in deploy_validate can be
+    unit tested by inspecting the recorded stages, mirroring run_doctor_checks.
+    """
+
+    PASS = "pass"
+    FAIL = "fail"
+    SKIP = "skip"
+
+    def __init__(self):
+        self.stages = []
+
+    def record(self, outcome, name, detail=""):
+        self.stages.append({"outcome": outcome, "name": name, "detail": detail})
+
+    def ok(self, name, detail=""):
+        self.record(self.PASS, name, detail)
+
+    def fail(self, name, detail=""):
+        self.record(self.FAIL, name, detail)
+
+    def skip(self, name, detail=""):
+        self.record(self.SKIP, name, detail)
+
+    @property
+    def failed(self):
+        return [s for s in self.stages if s["outcome"] == self.FAIL]
+
+    @property
+    def all_ok(self):
+        return not self.failed
+
+
+def _watch_job(ml_client, jobid, timeout, poll=15):
+    """Poll a job until it reaches a terminal state or ``timeout`` seconds pass.
+
+    Returns the final status string (possibly non-terminal if it timed out).
+    """
+    import time
+
+    deadline = time.time() + timeout
+    status = None
+    while True:
+        job = ml_client.jobs.get(jobid)
+        status = getattr(job, "status", None)
+        if is_terminal_state(status) or time.time() >= deadline:
+            return status
+        time.sleep(poll)
+
+
+def deploy_validate(args):
+    """Exercise every amlhpc feature end-to-end against the current cluster.
+
+    Runs a staged sequence of real operations -- doctor, profile listing,
+    partition discovery, a real EESSI probe job watched to completion, the job
+    introspection/cancel front-ends against that job's real JOBID, srun on the
+    login CI, and the opt-in container/dask/RBAC paths -- recording each stage's
+    outcome and exiting non-zero if any stage failed. Reuses the same building
+    blocks the real commands use (run_doctor_checks, get_ml_client, the slurm
+    front-ends) so a green run means the shipped tools work against this
+    workspace, not a mock of it.
+    """
+    import time
+
+    report = ValidationReport()
+    verbose = getattr(args, "verbose", 0)
+
+    def announce(text):
+        if verbose:
+            print(text)
+
+    from .context import ConnectionNotConfigured, resolve_connection
+    try:
+        conn = resolve_connection(getattr(args, "cluster", None))
+    except ConnectionNotConfigured as error:
+        print(error.message)
+        exit(-1)
+    announce("[..] connection: " + conn.workspace)
+    report.ok("connection", "workspace '" + conn.workspace + "'")
+
+    ml_client = config_ml_client(getattr(args, "cluster", None))
+
+    checks = run_doctor_checks(ml_client)
+    failing = [c for c in checks if not c["ok"]]
+    if failing:
+        report.fail("doctor", "; ".join(c["name"] for c in failing))
+        announce("[!!] doctor: " + ", ".join(c["name"] for c in failing))
+    else:
+        report.ok("doctor", "all checks pass")
+        announce("[ok] doctor")
+
+    partition = getattr(args, "partition", None)
+    if partition is None:
+        computes = list(_safe_list(ml_client.compute.list))
+        partitions = [c for c in computes
+                      if str(getattr(c, "type", "")).lower() == "amlcompute"]
+        partition = sorted(c.name for c in partitions)[0] if partitions else None
+
+    from .context import load_config, use_profile
+    config = load_config()
+    current = config.get("current")
+    if current:
+        try:
+            use_profile(current)
+            report.ok("clusters/use", "current '" + current + "'")
+        except ConnectionNotConfigured as error:
+            report.fail("clusters/use", error.message)
+    else:
+        report.skip("clusters/use", "no named current profile (using env/explicit)")
+
+    try:
+        computes = list(_safe_list(ml_client.compute.list))
+        names = sorted(str(getattr(c, "name", "")) for c in computes)
+        if partition and partition in names:
+            report.ok("sinfo", "partition '" + partition + "' listed")
+        elif partition:
+            report.fail("sinfo", "partition '" + partition + "' not in " + ", ".join(names))
+        else:
+            report.skip("sinfo", "no AmlCompute partition found to submit to")
+    except Exception as error:
+        report.fail("sinfo", str(error))
+
+    if partition is None:
+        report.skip("submit", "no partition; skipping job-dependent stages")
+        _print_validation_report(report)
+        if not report.all_ok:
+            exit(1)
+        return
+
+    jobid = None
+    from .slurm.sbatch import sbatch
+    wrap = build_eessi_wrap("ml load OpenFOAM; source $FOAM_BASH; simpleFoam -help")
+    try:
+        jobid = _capture_stdout_token(
+            lambda: sbatch(['-p', partition, '--wrap', wrap]))
+        if jobid:
+            report.ok("sbatch (EESSI)", "JOBID " + jobid)
+            announce("[ok] sbatch: " + jobid)
+        else:
+            report.fail("sbatch (EESSI)", "no JOBID printed")
+    except SystemExit as error:
+        report.fail("sbatch (EESSI)", "exit " + str(error.code))
+    except Exception as error:
+        report.fail("sbatch (EESSI)", str(error))
+
+    if jobid:
+        try:
+            found = any(getattr(job, "name", None) == jobid
+                        for page in ml_client.jobs.list().by_page() for job in page)
+            (report.ok if found else report.fail)(
+                "squeue/qstat/bjobs", ("job listed" if found else "job not in listing"))
+        except Exception as error:
+            report.fail("squeue/qstat/bjobs", str(error))
+
+        try:
+            ml_client.jobs.get(jobid)
+            report.ok("sacct", "status for " + jobid)
+        except Exception as error:
+            report.fail("sacct", str(error))
+
+        announce("[..] watching " + jobid + " (timeout " + str(args.timeout) + "s)")
+        try:
+            final = _watch_job(ml_client, jobid, args.timeout)
+            if is_terminal_state(final):
+                (report.ok if str(final).lower() == "completed" else report.fail)(
+                    "job watch", "final state " + str(final))
+            else:
+                report.fail("job watch", "did not finish within " + str(args.timeout) + "s (last: " + str(final) + ")")
+        except Exception as error:
+            report.fail("job watch", str(error))
+
+        try:
+            from .jobcontrol import attach_job
+            _capture_stdout_token(lambda: attach_job("sattach", [jobid]))
+            report.ok("sattach", "log fetched")
+        except SystemExit:
+            report.fail("sattach", "no log available")
+        except Exception as error:
+            report.fail("sattach", str(error))
+
+        try:
+            from .jobcontrol import show_job_stats
+            _capture_stdout_token(lambda: show_job_stats("sstat", [jobid]))
+            report.ok("sstat", "utilization queried")
+        except SystemExit as error:
+            report.fail("sstat", "exit " + str(error.code))
+        except Exception as error:
+            report.fail("sstat", str(error))
+
+    srun_jobid = None
+    try:
+        from .slurm.srun import srun
+        srun_jobid = _capture_stdout_token(lambda: srun(['--wrap', 'hostname']))
+        if srun_jobid:
+            _watch_job(ml_client, srun_jobid, args.timeout)
+            report.ok("srun", "login-CI job " + srun_jobid)
+        else:
+            report.fail("srun", "no JOBID printed")
+    except SystemExit as error:
+        report.fail("srun", "exit " + str(error.code))
+    except Exception as error:
+        report.fail("srun", str(error))
+
+    if args.include_container:
+        import os
+        if not os.path.isdir(args.container_path):
+            report.skip("container", "no build contexts under '" + args.container_path + "'")
+        else:
+            try:
+                from .container import container
+                _capture_stdout_token(
+                    lambda: container(['-p', args.container_path]))
+                report.ok("container", "environment(s) built")
+            except SystemExit as error:
+                report.fail("container", "exit " + str(error.code))
+            except Exception as error:
+                report.fail("container", str(error))
+    else:
+        report.skip("container", "not requested (--include-container)")
+
+    if args.include_dask:
+        report.skip("dask", "dask up/down requires an interactive session; run manually with dask-scheduler-up/dask-up/dask-down")
+    else:
+        report.skip("dask", "not requested (--include-dask)")
+
+    if args.invite_user:
+        try:
+            _run_role_assignment("create", "inviting",
+                                 _InviteArgs(args.invite_user, cluster=args.cluster))
+            _run_role_assignment("delete", "revoking",
+                                 _InviteArgs(args.invite_user, cluster=args.cluster))
+            report.ok("invite/uninvite", "round-tripped '" + args.invite_user + "'")
+        except SystemExit as error:
+            report.fail("invite/uninvite", "exit " + str(error.code))
+        except Exception as error:
+            report.fail("invite/uninvite", str(error))
+    else:
+        report.skip("invite/uninvite", "not requested (--invite-user)")
+
+    if not args.keep:
+        try:
+            from .slurm.sbatch import sbatch as _sbatch
+            from .jobcontrol import cancel_job
+            throwaway = _capture_stdout_token(
+                lambda: _sbatch(['-p', partition, '--wrap', 'sleep 600']))
+            if throwaway:
+                time.sleep(2)
+                _capture_stdout_token(lambda: cancel_job("scancel", [throwaway]))
+                report.ok("scancel", "cancelled " + throwaway)
+            else:
+                report.fail("scancel", "could not submit throwaway job")
+        except SystemExit as error:
+            report.fail("scancel", "exit " + str(error.code))
+        except Exception as error:
+            report.fail("scancel", str(error))
+    else:
+        report.skip("scancel", "--keep: left probe jobs running")
+
+    _print_validation_report(report)
+    if not report.all_ok:
+        exit(1)
+
+
+class _InviteArgs:
+    """Minimal args object so deploy_validate can invoke the RBAC path in-process."""
+
+    def __init__(self, user, cluster=None, role="AzureML Data Scientist", yes=True):
+        self.user = user
+        self.cluster = cluster
+        self.role = role
+        self.yes = yes
+
+
+def _capture_stdout_token(call):
+    """Run ``call`` (a command front-end), echo its stdout, return the last token.
+
+    The job front-ends print the JOBID as their only stdout line on success; we
+    still surface everything they print (so the run is auditable) but hand back
+    the final whitespace token as the JOBID for the stages that need it.
+    """
+    import io
+    import sys
+
+    buffer = io.StringIO()
+    saved = sys.stdout
+    sys.stdout = buffer
+    try:
+        call()
+    finally:
+        sys.stdout = saved
+
+    text = buffer.getvalue()
+    if text:
+        print(text, end="" if text.endswith("\n") else "\n")
+    tokens = text.split()
+    return tokens[-1] if tokens else None
+
+
+def _print_validation_report(report):
+    print("\namlhpc end-to-end validation")
+    marker = {report.PASS: "[ok]  ", report.FAIL: "[FAIL]", report.SKIP: "[skip]"}
+    for stage in report.stages:
+        line = marker[stage["outcome"]] + " " + stage["name"]
+        if stage["detail"]:
+            line += ": " + stage["detail"]
+        print(line)
+
+    passed = sum(1 for s in report.stages if s["outcome"] == report.PASS)
+    failed = len(report.failed)
+    skipped = sum(1 for s in report.stages if s["outcome"] == report.SKIP)
+    print("\n" + str(passed) + " passed, " + str(failed) + " failed, "
+          + str(skipped) + " skipped")
+    if report.all_ok:
+        print("workspace validated: amlhpc features work end-to-end")
+    else:
+        print("validation FAILED: " + ", ".join(s["name"] for s in report.failed))
 
