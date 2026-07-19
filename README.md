@@ -8,7 +8,24 @@ the need to re-program another integration.
 
 See [architecture.md](architecture.md) for how amlhpc integrates with Azure Machine Learning.
 
-For the commands to function, the following environment variables have to be set:
+For the commands to function, amlhpc needs to know which Azure Machine Learning workspace to
+talk to: a subscription, a resource group and a workspace name. The recommended way is a
+**cluster profile** stored in `~/.amlhpc/config.json` — an OS-neutral file read directly by the
+tool on Linux, Windows and inside AML, so you never have to `source` a shell file or juggle
+per-shell exports. Register an existing workspace once and it becomes the current cluster:
+
+```
+amlhpc deploy connect -n prod -s <subscription-guid> -g <resource-group> -w <workspace>
+amlhpc clusters          # list registered profiles ( * marks the current one)
+amlhpc use dev           # switch the current cluster
+```
+
+Profiles are not secret — they only name the workspace; every command still authenticates as
+your own Azure identity — so they can be shared with `deploy share`/`import` and other users
+granted access with `deploy invite`. See [deploy/README.md](deploy/README.md#cluster-profiles).
+
+The legacy environment variables are still fully supported and take precedence over the
+current profile, so nothing that works today breaks:
 ```
 SUBSCRIPTION=<guid of you Azure subscription e.g. 12345678-1234-1234-1234-1234567890ab>
 CI_RESOURCE_GROUP=<name of the resource group where your Azure Machine Learning Workspace is created>
@@ -45,6 +62,8 @@ commands:
   dask-scheduler-up
   dask-up
   dask-down
+  use
+  clusters
 
 run 'amlhpc <command> --help' for command-specific options
 ```
