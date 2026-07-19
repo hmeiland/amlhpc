@@ -130,3 +130,6 @@ dmypy.json
 .pyre/
 
 env0
+
+# OhMyOpenCode session/continuation state
+.omo/
