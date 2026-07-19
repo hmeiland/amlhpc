@@ -40,6 +40,38 @@ def deploy(vargs=None):
     config_parser.add_argument('action', choices=['set-prolog', 'set-epilog', 'show', 'clear-prolog', 'clear-epilog'], help='set-* uploads a snippet from FILE; show prints current hooks; clear-* removes one')
     config_parser.add_argument('file', nargs='?', default=None, help='shell snippet file to upload (required for set-prolog/set-epilog)')
 
+    doctor_parser = subparsers.add_parser('doctor', help='check the workspace has everything amlhpc needs (default environment, a partition, login CI, datastore)')
+    doctor_parser.add_argument('--fix', action='store_true', help='create the pieces that can be provisioned non-interactively (currently the default job environment)')
+
+    connect_parser = subparsers.add_parser('connect', help='register an existing Azure Machine Learning workspace as a named cluster profile (~/.amlhpc/config.json)')
+    connect_parser.add_argument('-n', '--name', required=True, help='local name for this cluster profile (used by --cluster / amlhpc use)')
+    connect_parser.add_argument('-g', '--resource-group', required=True, help='resource group holding the workspace')
+    connect_parser.add_argument('-w', '--workspace', required=True, help='Azure Machine Learning workspace name')
+    connect_parser.add_argument('-s', '--subscription', default=None, help='subscription id (default: the SUBSCRIPTION environment variable)')
+    connect_parser.add_argument('--no-current', action='store_true', help='register the profile without making it the current one')
+    connect_parser.add_argument('--check', action='store_true', help="run 'deploy doctor' against the workspace after connecting")
+
+    share_parser = subparsers.add_parser('share', help='export a cluster profile as a secret-free pointer another user can import (carries no credentials)')
+    share_parser.add_argument('-n', '--name', required=True, help='name of the local cluster profile to export')
+    share_parser.add_argument('-o', '--output', default=None, help='file to write the pointer to (default: stdout)')
+
+    import_parser = subparsers.add_parser('import', help='import a cluster profile pointer produced by "deploy share"')
+    import_parser.add_argument('-f', '--file', default=None, help='pointer file to read (default: stdin)')
+    import_parser.add_argument('--no-current', action='store_true', help='import the profile without making it the current one')
+    import_parser.add_argument('--check', action='store_true', help="run 'deploy doctor' against the workspace after importing")
+
+    invite_parser = subparsers.add_parser('invite', help='grant a user access to the current workspace (AzureML Data Scientist role, workspace-scoped)')
+    invite_parser.add_argument('user', help='user to grant access to: email/UPN or Azure AD object id')
+    invite_parser.add_argument('--cluster', default=None, help='cluster profile to grant against (default: the resolved current cluster)')
+    invite_parser.add_argument('--role', default='AzureML Data Scientist', help='role to assign (default: "AzureML Data Scientist")')
+    invite_parser.add_argument('-y', '--yes', action='store_true', help='skip the confirmation prompt')
+
+    uninvite_parser = subparsers.add_parser('uninvite', help='revoke a user\'s access to the current workspace (removes the workspace-scoped role assignment)')
+    uninvite_parser.add_argument('user', help='user to revoke: email/UPN or Azure AD object id')
+    uninvite_parser.add_argument('--cluster', default=None, help='cluster profile to revoke against (default: the resolved current cluster)')
+    uninvite_parser.add_argument('--role', default='AzureML Data Scientist', help='role to remove (default: "AzureML Data Scientist")')
+    uninvite_parser.add_argument('-y', '--yes', action='store_true', help='skip the confirmation prompt')
+
     args = parser.parse_args(vargs)
 
     if args.subcommand == 'init':
@@ -48,6 +80,18 @@ def deploy(vargs=None):
         deploy_partition(args)
     elif args.subcommand == 'config':
         deploy_config(args)
+    elif args.subcommand == 'doctor':
+        deploy_doctor(args)
+    elif args.subcommand == 'connect':
+        deploy_connect(args)
+    elif args.subcommand == 'share':
+        deploy_share(args)
+    elif args.subcommand == 'import':
+        deploy_import(args)
+    elif args.subcommand == 'invite':
+        deploy_invite(args)
+    elif args.subcommand == 'uninvite':
+        deploy_uninvite(args)
 
 
 def resolve_template(template):
@@ -156,17 +200,22 @@ def deploy_init(args):
     print("wrote cluster profile: " + profile_path)
     print("return to this cluster later with: source " + profile_path)
 
+    from .context import put_profile
+    config_path = put_profile(args.name, subscription_id, args.resource_group, workspace_name)
+    print("registered cluster profile '" + args.name + "' in " + config_path
+          + " (now the current cluster; amlhpc clusters to list, amlhpc use to switch)")
+
 
 def deploy_partition(args):
-    import os
-
+    from .context import ConnectionNotConfigured, resolve_connection
     try:
-        subscription_id = os.environ['SUBSCRIPTION']
-        resource_group = os.environ['CI_RESOURCE_GROUP']
-        workspace_name = os.environ['CI_WORKSPACE']
-    except Exception as error:
-        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
+        conn = resolve_connection()
+    except ConnectionNotConfigured as error:
+        print(error.message)
         exit(-1)
+    subscription_id = conn.subscription
+    resource_group = conn.resource_group
+    workspace_name = conn.workspace
 
     from azure.ai.ml import MLClient
     from azure.identity import DefaultAzureCredential
@@ -202,16 +251,338 @@ def deploy_partition(args):
     print(returned_partition.name + "\t" + returned_partition.size + "\t" + str(returned_partition.max_instances))
 
 
-def config_ml_client():
+DEFAULT_ENVIRONMENT = "amlhpc-ubuntu2204"
+DEFAULT_ENVIRONMENT_IMAGE = "docker.io/hmeiland/amlhpc-ubuntu2204"
+
+
+def run_doctor_checks(ml_client):
+    """Probe a workspace for the pieces amlhpc needs at runtime.
+
+    Returns a list of check dicts: name, ok (bool), detail (human string),
+    fixable (bool -- whether 'doctor --fix' can create it non-interactively).
+    Kept pure (no printing, no Azure client construction) so it is unit
+    testable against a stub ml_client and reused by both the report and --fix.
+
+    The checks mirror real runtime dependencies:
+      * default job environment 'amlhpc-ubuntu2204' -- sbatch falls back to it
+        when no -e/--environment is given (see slurm/sbatch.py);
+      * at least one AmlCompute partition -- sbatch errors without a -p target;
+      * the default blob datastore 'workspaceblobstore' -- backs the site-wide
+        prolog/epilog (see config.py);
+      * a login ComputeInstance -- srun auto-discovers it when no -p is given.
+    """
+    checks = []
+
+    have_env = False
+    try:
+        for env in ml_client.environments.list(name=DEFAULT_ENVIRONMENT):
+            have_env = True
+            break
+    except Exception:
+        have_env = _any_named_environment(ml_client, DEFAULT_ENVIRONMENT)
+    checks.append({
+        "name": "default job environment '" + DEFAULT_ENVIRONMENT + "'",
+        "ok": have_env,
+        "detail": ("present" if have_env
+                   else "missing; sbatch has no default environment to fall back on"),
+        "fixable": True,
+    })
+
+    computes = list(_safe_list(ml_client.compute.list))
+    partitions = [c for c in computes
+                  if str(getattr(c, "type", "")).lower() == "amlcompute"]
+    instances = [c for c in computes
+                 if str(getattr(c, "type", "")).lower() == "computeinstance"]
+
+    checks.append({
+        "name": "at least one AmlCompute partition",
+        "ok": bool(partitions),
+        "detail": (", ".join(sorted(c.name for c in partitions))
+                   if partitions
+                   else "none found; add one with 'deploy partition -n <name> -s <size>'"),
+        "fixable": False,
+    })
+
+    checks.append({
+        "name": "login ComputeInstance (for srun)",
+        "ok": bool(instances),
+        "detail": (", ".join(sorted(c.name for c in instances))
+                   if instances
+                   else "none found; srun has no login node to auto-discover"),
+        "fixable": False,
+    })
+
+    have_datastore = False
+    try:
+        ml_client.datastores.get("workspaceblobstore")
+        have_datastore = True
+    except Exception:
+        have_datastore = False
+    checks.append({
+        "name": "default datastore 'workspaceblobstore'",
+        "ok": have_datastore,
+        "detail": ("present" if have_datastore
+                   else "missing; site prolog/epilog storage is unavailable"),
+        "fixable": False,
+    })
+
+    return checks
+
+
+def _safe_list(list_callable):
+    """Call an SDK list() and return an iterable, tolerating transport errors."""
+    try:
+        return list(list_callable())
+    except Exception:
+        return []
+
+
+def _any_named_environment(ml_client, name):
+    """Fallback existence probe for SDKs whose list() rejects a name kwarg."""
+    try:
+        for env in ml_client.environments.list():
+            if getattr(env, "name", None) == name:
+                return True
+    except Exception:
+        return False
+    return False
+
+
+def create_default_environment(ml_client):
+    """Create the default 'amlhpc-ubuntu2204' job environment. Returns its name."""
+    from azure.ai.ml.entities import Environment
+
+    environment = Environment(
+        name=DEFAULT_ENVIRONMENT,
+        image=DEFAULT_ENVIRONMENT_IMAGE,
+        description="Default amlhpc job environment (created by 'deploy doctor --fix').",
+    )
+    created = ml_client.environments.create_or_update(environment)
+    return getattr(created, "name", DEFAULT_ENVIRONMENT)
+
+
+def deploy_connect(args):
+    """Register an existing workspace as a named profile in ~/.amlhpc/config.json.
+
+    This is the non-provisioning counterpart to 'deploy init': the workspace
+    already exists (someone else ran init, or it predates amlhpc), and the user
+    just wants their client to talk to it. Subscription defaults to $SUBSCRIPTION
+    because that is the one identifier a user reliably has exported already.
+    """
     import os
 
-    try:
-        subscription_id = os.environ['SUBSCRIPTION']
-        resource_group = os.environ['CI_RESOURCE_GROUP']
-        workspace_name = os.environ['CI_WORKSPACE']
-    except Exception:
-        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP and CI_WORKSPACE")
+    from .context import put_profile
+
+    subscription = args.subscription or os.environ.get('SUBSCRIPTION')
+    if not subscription:
+        print("Missing: pass -s/--subscription or export SUBSCRIPTION")
         exit(-1)
+
+    path = put_profile(args.name, subscription, args.resource_group,
+                       args.workspace, make_current=not args.no_current)
+    print("registered cluster profile '" + args.name + "' in " + path)
+    if not args.no_current:
+        print("it is now the current cluster (amlhpc clusters to list, amlhpc use to switch)")
+
+    if args.check:
+        deploy_doctor(_DoctorArgs(cluster=args.name))
+
+
+class _DoctorArgs:
+    """Minimal args object so deploy_connect can invoke the doctor in-process."""
+
+    def __init__(self, cluster=None, fix=False):
+        self.cluster = cluster
+        self.fix = fix
+
+
+def build_role_command(action, az_path, role, scope, user):
+    """Build the 'az role assignment <action>' argv for a workspace-scoped grant.
+
+    Kept pure (no side effects) so the exact command can be unit tested and
+    reused verbatim by both the executed path and the printed-fallback path.
+    ``action`` is 'create' or 'delete'.
+    """
+    return [az_path, "role", "assignment", action,
+            "--role", role,
+            "--scope", scope,
+            "--assignee", user]
+
+
+def _run_role_assignment(action, verb, args):
+    """Shared body for invite/uninvite: resolve, confirm, run 'az', or fall back.
+
+    Access is separate from the shared profile: the profile only names the
+    workspace, so granting a role via Azure RBAC is what actually lets an
+    invited user reach it. If 'az' is absent or the caller lacks permission to
+    change role assignments, the exact command is printed for an admin to run.
+    """
+    import shutil
+    import subprocess
+
+    from .context import ConnectionNotConfigured, resolve_connection
+
+    try:
+        conn = resolve_connection(args.cluster)
+    except ConnectionNotConfigured as error:
+        print(error.message)
+        exit(-1)
+
+    scope = conn.workspace_uri()
+    az = shutil.which('az')
+    command = build_role_command(action, az or 'az', args.role, scope, args.user)
+    printable = " ".join(('"' + part + '"' if ' ' in part else part)
+                         for part in command)
+
+    if az is None:
+        print("the Azure CLI (az) is not installed; ask an admin to run:")
+        print("  " + printable)
+        return
+
+    print(verb + " '" + args.user + "' " + ("to" if action == "create" else "from")
+          + " workspace '" + conn.workspace + "' with role '" + args.role + "'")
+    if not args.yes:
+        answer = input("proceed? [y/N] ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("aborted; no changes made")
+            return
+
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode == 0:
+        print(("granted" if action == "create" else "revoked") + " access for '"
+              + args.user + "'")
+        return
+
+    print(verb + " failed (az exit " + str(result.returncode) + "):")
+    if result.stderr:
+        print(result.stderr.strip())
+    print("if you lack permission to manage role assignments, ask an admin to run:")
+    print("  " + printable)
+    exit(1)
+
+
+def deploy_invite(args):
+    """Grant a user workspace-scoped access to the current cluster."""
+    _run_role_assignment("create", "inviting", args)
+
+
+def deploy_uninvite(args):
+    """Revoke a user's workspace-scoped access to the current cluster."""
+    _run_role_assignment("delete", "revoking", args)
+
+
+def deploy_share(args):
+    """Print or write a secret-free pointer to a cluster profile.
+
+    The pointer carries only the workspace identifiers -- never credentials --
+    so it is safe to send over chat or email. The recipient still authenticates
+    as themselves and needs their own Azure access ('deploy invite' grants it).
+    """
+    import json
+
+    from .context import ConnectionNotConfigured, export_profile
+
+    try:
+        blob = export_profile(args.name)
+    except ConnectionNotConfigured as error:
+        print(error.message)
+        exit(-1)
+
+    text = json.dumps(blob, indent=2, sort_keys=True)
+    if args.output:
+        with open(args.output, "w") as handle:
+            handle.write(text + "\n")
+        print("wrote shareable pointer for '" + args.name + "' to " + args.output)
+    else:
+        print(text)
+
+
+def deploy_import(args):
+    """Import a pointer from 'deploy share' (file or stdin) into the local store."""
+    import json
+    import sys
+
+    from .context import ConnectionNotConfigured, import_profile
+
+    if args.file:
+        with open(args.file) as handle:
+            raw = handle.read()
+    else:
+        raw = sys.stdin.read()
+
+    try:
+        blob = json.loads(raw)
+    except ValueError:
+        print("could not parse the pointer as JSON; expected the output of 'deploy share'")
+        exit(-1)
+
+    try:
+        name = import_profile(blob, make_current=not args.no_current)
+    except ConnectionNotConfigured as error:
+        print(error.message)
+        exit(-1)
+
+    print("imported cluster profile '" + name + "'")
+    if not args.no_current:
+        print("it is now the current cluster (amlhpc use to switch, amlhpc clusters to list)")
+
+    if args.check:
+        deploy_doctor(_DoctorArgs(cluster=name))
+
+
+def deploy_doctor(args):
+    """Report (and optionally --fix) the workspace's amlhpc feature-completeness."""
+    ml_client = config_ml_client(getattr(args, "cluster", None))
+    checks = run_doctor_checks(ml_client)
+
+    print("amlhpc feature-completeness check")
+    all_ok = True
+    for check in checks:
+        marker = "[ok]  " if check["ok"] else "[FAIL]"
+        print(marker + " " + check["name"] + ": " + check["detail"])
+        if not check["ok"]:
+            all_ok = False
+
+    if all_ok:
+        print("\nworkspace is amlhpc-ready")
+        return
+
+    fixable = [c for c in checks if not c["ok"] and c["fixable"]]
+    if not getattr(args, "fix", False):
+        if fixable:
+            print("\nre-run with --fix to create: "
+                  + ", ".join(c["name"] for c in fixable))
+        exit(1)
+
+    if not fixable:
+        print("\nnothing here can be fixed automatically; see the guidance above")
+        exit(1)
+
+    for check in fixable:
+        if check["name"].startswith("default job environment"):
+            name = create_default_environment(ml_client)
+            print("created default environment: " + name)
+
+    remaining = [c for c in run_doctor_checks(ml_client) if not c["ok"]]
+    if remaining:
+        print("\nstill incomplete (needs manual action): "
+              + ", ".join(c["name"] for c in remaining))
+        exit(1)
+    print("\nworkspace is now amlhpc-ready")
+
+
+def config_ml_client(cluster=None):
+    import os
+
+    from .context import ConnectionNotConfigured, resolve_connection
+    try:
+        conn = resolve_connection(cluster)
+    except ConnectionNotConfigured as error:
+        print(error.message)
+        exit(-1)
+    subscription_id = conn.subscription
+    resource_group = conn.resource_group
+    workspace_name = conn.workspace
 
     from azure.ai.ml import MLClient
     from azure.identity import DefaultAzureCredential
