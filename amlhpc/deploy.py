@@ -731,6 +731,25 @@ def _watch_job(ml_client, jobid, timeout, poll=15):
         time.sleep(poll)
 
 
+def _job_in_listing(ml_client, jobid, attempts=5, poll=6):
+    """True if ``jobid`` appears in jobs.list(), retrying to absorb index lag.
+
+    jobs.get() is a direct lookup that resolves a just-submitted job at once,
+    but jobs.list() is an eventually-consistent index that can trail submission
+    by seconds; a bounded retry mirrors a user re-running squeue a moment later.
+    """
+    import time
+
+    for attempt in range(attempts):
+        for page in ml_client.jobs.list().by_page():
+            for job in page:
+                if getattr(job, "name", None) == jobid:
+                    return True
+        if attempt < attempts - 1:
+            time.sleep(poll)
+    return False
+
+
 def deploy_validate(args):
     """Exercise every amlhpc feature end-to-end against the current cluster.
 
@@ -828,8 +847,7 @@ def deploy_validate(args):
 
     if jobid:
         try:
-            found = any(getattr(job, "name", None) == jobid
-                        for page in ml_client.jobs.list().by_page() for job in page)
+            found = _job_in_listing(ml_client, jobid)
             (report.ok if found else report.fail)(
                 "squeue/qstat/bjobs", ("job listed" if found else "job not in listing"))
         except Exception as error:

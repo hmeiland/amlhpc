@@ -58,6 +58,40 @@ def test_capture_stdout_token_none_when_no_output():
     assert deploy._capture_stdout_token(lambda: None) is None
 
 
+class _LaggyJobs:
+    """jobs.list() that is empty until the Nth call, mimicking index lag."""
+
+    def __init__(self, jobid, appear_on_call):
+        self._jobid = jobid
+        self._appear_on_call = appear_on_call
+        self.calls = 0
+
+    def list(self):
+        self.calls += 1
+        jobs = [_Job(self._jobid)] if self.calls >= self._appear_on_call else []
+        return _JobList(jobs)
+
+
+def test_job_in_listing_retries_until_index_catches_up(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _s: None)
+
+    class _C:
+        jobs = _LaggyJobs("late_job", appear_on_call=3)
+
+    client = _C()
+    assert deploy._job_in_listing(client, "late_job", attempts=5, poll=0) is True
+    assert client.jobs.calls == 3
+
+
+def test_job_in_listing_false_when_never_appears(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda _s: None)
+
+    class _C:
+        jobs = _LaggyJobs("ghost", appear_on_call=99)
+
+    assert deploy._job_in_listing(_C(), "ghost", attempts=3, poll=0) is False
+
+
 class _Named:
     def __init__(self, name, kind=None):
         self.name = name
