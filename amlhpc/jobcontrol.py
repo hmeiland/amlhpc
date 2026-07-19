@@ -12,16 +12,19 @@ class mlComputeAuth:
         return my_token
 
 
-def get_ml_client():
+def get_ml_client(cluster=None):
     import os
 
+    from .context import ConnectionNotConfigured, resolve_connection
+
     try:
-        subscription_id = os.environ['SUBSCRIPTION']
-        resource_group = os.environ['CI_RESOURCE_GROUP']
-        workspace_name = os.environ['CI_WORKSPACE']
-    except Exception:
-        print("please set the export variables: SUBSCRIPTION, CI_RESOURCE_GROUP, and CI_WORKSPACE")
+        conn = resolve_connection(cluster)
+    except ConnectionNotConfigured as error:
+        print(error.message)
         exit(-1)
+    subscription_id = conn.subscription
+    resource_group = conn.resource_group
+    workspace_name = conn.workspace
 
     from azure.ai.ml import MLClient
     from azure.identity import DefaultAzureCredential
@@ -178,15 +181,8 @@ def show_job_stats(prog, vargs):
     start = start - timedelta(minutes=1)
     end = end + timedelta(minutes=1)
 
-    import os
-    subscription_id = os.environ['SUBSCRIPTION']
-    resource_group = os.environ['CI_RESOURCE_GROUP']
-    workspace_name = os.environ['CI_WORKSPACE']
-    workspace_uri = (
-        "/subscriptions/" + subscription_id
-        + "/resourceGroups/" + resource_group
-        + "/providers/Microsoft.MachineLearningServices/workspaces/" + workspace_name
-    )
+    from .context import resolve_connection
+    workspace_uri = resolve_connection().workspace_uri()
 
     try:
         from azure.monitor.query import MetricsQueryClient, MetricAggregationType
