@@ -232,7 +232,7 @@ def deploy_partition(args):
 
     from azure.ai.ml import MLClient
     from azure.identity import DefaultAzureCredential
-    from azure.ai.ml.entities import AmlCompute
+    from azure.ai.ml.entities import AmlCompute, IdentityConfiguration
 
     import os
     import logging
@@ -253,6 +253,9 @@ def deploy_partition(args):
         enable_telemetry=False,
         )
 
+    # A partition with identity: null cannot pull images from the workspace's
+    # attached ACR (the executor stalls and the job fails), so give every
+    # partition a SystemAssigned identity, matching the Bicep-provisioned ones.
     partition = AmlCompute(
         name=args.name,
         size=args.size,
@@ -260,6 +263,7 @@ def deploy_partition(args):
         max_instances=args.max_nodes,
         idle_time_before_scale_down=args.idle_time,
         tier=args.priority,
+        identity=IdentityConfiguration(type="SystemAssigned"),
         )
     returned_partition = ml_client.compute.begin_create_or_update(partition).result()
     print(returned_partition.name + "\t" + returned_partition.size + "\t" + str(returned_partition.max_instances))
