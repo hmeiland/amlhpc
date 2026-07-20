@@ -27,7 +27,7 @@ def sbatch(vargs=None):
 
     pwd = os.environ.get('PWD', os.getcwd())
 
-    from azure.ai.ml import MLClient, Output, Input, command
+    from azure.ai.ml import MLClient, Output, Input, command, MpiDistribution
     from azure.identity import DefaultAzureCredential
     from azure.ai.ml.entities import Environment, CommandJob
     from azure.ai.ml.constants import AssetTypes, InputOutputModes
@@ -280,11 +280,17 @@ def sbatch(vargs=None):
         print(returned_job.name)
 
     if (args.parallel == "single"):
+        # Multi-node jobs need an MPI distribution so AML sets up the
+        # passwordless inter-node SSH fabric OpenMPI's mpirun relies on; without
+        # it the extra nodes are allocated but unreachable. Single-node jobs keep
+        # the plain command form (no distribution).
+        distribution = MpiDistribution(process_count_per_instance=1) if args.nodes > 1 else None
         command_job = command(
             code=job_code,
             command=job_command,
             environment=args.environment,
             instance_count=args.nodes,
+            distribution=distribution,
             compute=args.partition,
             outputs=outputs,
             environment_variables=job_env,
