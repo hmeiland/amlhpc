@@ -127,6 +127,14 @@ JOBID                           NAME            PARTITION       STATE           
 polite_kitten_x3g0kwt9w2        polite_kitten_x f4s             Completed       2026-07-18T11:49:45 2026-07-18T12:36:08
 ```
 Multiple JOBIDs may be given; a JOBID that does not exist is reported and `sacct` exits non-zero.
+Pass `-w`/`--watch` to re-poll and reprint (each pass stamped with a UTC timestamp) until every
+named job reaches a terminal state; `--interval` sets the seconds between refreshes (default 30).
+```
+(azureml_py38) azureuser@login-vm:~$ sacct -w --interval 30 willing_pea_xtlvr4zw60
+== 2026-07-19T19:53:44Z ==
+JOBID                           NAME            PARTITION       STATE           START               END
+willing_pea_xtlvr4zw60          willing_pea_xtl hbv3            Running         2026-07-19T19:52:10 -
+```
 
 # sstat
 

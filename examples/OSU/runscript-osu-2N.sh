@@ -1,33 +1,30 @@
 #!/bin/bash
-# OSU Micro-Benchmarks — point-to-point latency and bandwidth between two
-# HB-series VMs over the InfiniBand interconnect.
+# OSU Micro-Benchmarks - point-to-point latency between two HB-series VMs over
+# the InfiniBand interconnect.
 #
-# Submit with two nodes:
-#   sbatch -p hbv2 -N 2 ./runscript-osu-2N.sh
+# Submit with two nodes on an HB partition, using the openmpi-eessi environment
+# (stock AzureML OpenMPI 4.1.0 rebuilt --with-ucx + baked OSU; see
+# environments/openmpi-eessi):
+#   sbatch -p hbv3 -N 2 -e openmpi-eessi@latest ./runscript-osu-2N.sh
 #
-# AZ_BATCH_HOST_LIST is a comma-separated list of the node IPs AML assigns to
-# the job. We mount the EESSI cvmfs stack on every node, then run one MPI rank
-# per node so the two ranks land on different VMs and the traffic crosses IB.
+# amlhpc runs multi-node (-N > 1) jobs under an AML MPI distribution, so AML
+# launches this script once per rank (one rank per node here) inside its own
+# mpirun and hands each rank the MPI world. The script is therefore the
+# per-rank body: it runs the OSU binary directly. It must NOT call mpirun itself
+# (that would nest a second MPI job) or parallel-ssh.
+#
+# Exactly ONE MPI program may run per job: AML wraps the whole script in a single
+# mpirun, so the first MPI_Finalize tears down the shared world and a second
+# binary aborts in MPI_Init. Bandwidth therefore has its own runscript
+# (runscript-osu-bw-2N.sh) submitted as a separate job.
 
-# Mount the EESSI software stack on all nodes in the job.
-parallel-ssh -i -H "${AZ_BATCH_HOST_LIST//,/ }" \
-    "sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io"
+# Force the InfiniBand path: pml_ucx over the mlx5 verbs device. Without this
+# OpenMPI can silently fall back to the TCP btl and the numbers reflect Ethernet.
+export OMPI_MCA_pml=ucx
+export OMPI_MCA_osc=ucx
+export OMPI_MCA_btl=^tcp,openib
 
-source /cvmfs/software.eessi.io/versions/2023.06/init/bash
-ml load OSU-Micro-Benchmarks/7.2-gompi-2023b
-
-# One line per node so mpirun can place exactly one rank on each VM.
-rm -f hostfile.txt
-for i in ${AZ_BATCH_HOST_LIST//,/ }
-do
-        echo "${i}:1" >> hostfile.txt
-done
-
-echo "=== hosts ==="
-cat hostfile.txt
-
-echo "=== OSU point-to-point latency (us) — VM-to-VM over InfiniBand ==="
-mpirun -x PATH -np 2 --map-by ppr:1:node --hostfile hostfile.txt osu_latency
-
-echo "=== OSU point-to-point bandwidth (MB/s) — VM-to-VM over InfiniBand ==="
-mpirun -x PATH -np 2 --map-by ppr:1:node --hostfile hostfile.txt osu_bw
+if [ "${OMPI_COMM_WORLD_RANK}" = "0" ]; then
+    echo "=== OSU point-to-point latency (us) - VM-to-VM over InfiniBand ==="
+fi
+osu_latency

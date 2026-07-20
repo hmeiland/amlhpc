@@ -46,26 +46,42 @@ On the compute node `archdetect` picks the node's own micro-architecture (e.g.
 `x86_64/intel/skylake_avx512` on an `f4s`), so the optimised build for that partition is used.
 
 
-## Site-wide prolog/epilog: submit bare application commands
+## Site-wide prolog/epilog: mount the stack once, per node
 
-Wiring the cvmfs mount and module load into every `--wrap` is repetitive. An admin can install
-a **site prolog** (and optional epilog) once into the workspace storage stack; every `sbatch`/`srun`
-job then runs it automatically before the user command, so users submit the bare application:
-```
-sbatch -p f4s --wrap='simpleFoam -help'
-```
+Wiring the cvmfs mount into every `--wrap` is repetitive. An admin can install a **site prolog**
+(and optional epilog) once into the workspace storage stack; every `sbatch`/`srun` job then runs
+it automatically before the user command, so the EESSI stack is already mounted and initialised
+when the job starts.
 
 Install the hooks from the login node (stored in `workspaceblobstore/amlhpc/{prolog,epilog}.sh`):
 ```
 cat > prolog.sh <<'EOF'
-sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io
+# Mount EESSI on every node in the job (multi-node), or just this node for a
+# single-node job. AZ_BATCH_HOST_LIST is only set when -N > 1.
+if [ -n "$AZ_BATCH_HOST_LIST" ]; then
+    parallel-ssh -i -H "${AZ_BATCH_HOST_LIST//,/ }" \
+        "sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io"
+else
+    sudo mount -t cvmfs software.eessi.io /cvmfs/software.eessi.io
+fi
 source /cvmfs/software.eessi.io/versions/2023.06/init/bash
-ml load OpenFOAM
-source $FOAM_BASH
 EOF
 deploy config set-prolog prolog.sh
 deploy config show
 ```
+Users then load their application and run it in the `--wrap` (or runscript):
+```
+sbatch -p f4s --wrap='ml load OpenFOAM; source $FOAM_BASH; simpleFoam -help'
+```
+
+**The prolog deliberately does not `ml load` any application.** Its job is to make the software
+stack *available* — mount cvmfs (on every node, via `parallel-ssh`, so multi-node MPI jobs work
+too) and initialise EESSI. **Choosing which application to load is the user's responsibility**
+and belongs in the job command: a site prolog is shared by *every* job on the workspace, so a
+hard-coded `ml load OpenFOAM` there would force OpenFOAM onto unrelated GROMACS, Quantum ESPRESSO
+or OSU-benchmark jobs. Keeping the split at "prolog mounts, job loads" lets one prolog serve
+every application while each job stays in control of its own environment.
+
 Every job is wrapped as `prolog → ( user command ) → epilog`; the user command runs in a subshell
 so a failing/`exit`-ing command still runs the epilog and its exit code is preserved. Pass
 `--no-prolog` to `sbatch`/`srun` to opt a single job out. Remove with `deploy config clear-prolog`.
