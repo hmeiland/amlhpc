@@ -114,6 +114,23 @@ resource workspace 'Microsoft.MachineLearningServices/workspaces@2023-06-01-prev
   }
 }
 
+// The registry keeps adminUserEnabled:false (above). AML "build on compute"
+// (environment image builds) then authenticates its `docker login`/push to ACR
+// with the workspace system-assigned managed identity instead of admin creds,
+// which requires the AcrPush role on the registry. Without this the build fails
+// at "Logging into Docker registry" (docker_login non-zero). Ref:
+// https://learn.microsoft.com/azure/machine-learning/how-to-identity-based-service-authentication#scenario-azure-container-registry-without-admin-user
+var acrPushRoleId = '8311e382-0749-4cb8-b61a-304f252e45ec'
+resource workspaceAcrPush 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(registry.id, workspace.id, acrPushRoleId)
+  scope: registry
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', acrPushRoleId)
+    principalId: workspace.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 resource virtualNetwork 'Microsoft.Network/virtualNetworks@2021-05-01' = {
   name: virtualNetworkName
   location: location

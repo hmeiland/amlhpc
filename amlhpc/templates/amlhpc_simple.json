@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.45.15.27210",
-      "templateHash": "9805727260010962909"
+      "templateHash": "4179317194055722743"
     }
   },
   "parameters": {
@@ -46,6 +46,7 @@
     "applicationInsightId": "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]",
     "containerRegistryId": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
     "subnetClusterId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), 'cluster')]",
+    "acrPushRoleId": "8311e382-0749-4cb8-b61a-304f252e45ec",
     "setupscript_1": "pip install amlhpc \nwget https://cvmrepo.s3.cern.ch/cvmrepo/apt/cvmfs-release-latest_all.deb && dpkg -i cvmfs-release-latest_all.deb\napt-get update && apt-get install -y cvmfs\nwget https://github.com/EESSI/filesystem-layer/releases/download/latest/cvmfs-config-eessi_latest_all.deb && dpkg -i cvmfs-config-eessi_latest_all.deb\necho 'CVMFS_CLIENT_PROFILE=\"single\"' > /etc/cvmfs/default.local\necho 'CVMFS_QUOTA_LIMIT=10000' >> /etc/cvmfs/default.local\necho 'CVMFS_REPOSITORIES=cms.cern.ch,software.eessi.io' >> /etc/cvmfs/default.local\necho 'CVMFS_HTTP_PROXY=DIRECT' >> /etc/cvmfs/default.local\ncvmfs_config setup; mkdir -p /cvmfs/software.eessi.io\necho \"export SUBSCRIPTION=",
     "setupscript_2": "[concat(variables('setupscript_1'), subscription().subscriptionId)]",
     "setupscript": "[concat(variables('setupscript_2'), '\" > /etc/profile.d/amlhpc.sh')]",
@@ -154,6 +155,21 @@
         "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
         "[resourceId('Microsoft.KeyVault/vaults', variables('keyVaultName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "scope": "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+      "name": "[guid(resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName')), resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName')), variables('acrPushRoleId'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('acrPushRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName')), '2023-06-01-preview', 'full').identity.principalId]",
+        "principalType": "ServicePrincipal"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerRegistry/registries', variables('containerRegistryName'))]",
+        "[resourceId('Microsoft.MachineLearningServices/workspaces', variables('workspaceName'))]"
       ]
     },
     {
