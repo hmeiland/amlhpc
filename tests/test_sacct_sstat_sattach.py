@@ -194,6 +194,51 @@ def test_sstat_queries_azure_monitor(stub_client, capsys, monkeypatch):
     assert "no data" in out
 
 
+class TransitioningJobs:
+    """jobs.get() that returns the given status sequence, holding the last."""
+
+    def __init__(self, name, statuses):
+        self._name = name
+        self._statuses = list(statuses)
+        self.calls = 0
+
+    def get(self, jobid):
+        idx = min(self.calls, len(self._statuses) - 1)
+        self.calls += 1
+        return FakeJob(jobid, status=self._statuses[idx])
+
+
+def test_sacct_watch_returns_immediately_when_already_terminal(stub_client, monkeypatch):
+    stub_client(jobs=[FakeJob("job_done", status="Completed")])
+    slept = []
+    monkeypatch.setattr("time.sleep", lambda s: slept.append(s))
+    show_job_status("sacct", ["job_done", "--watch", "--interval", "1"])
+    assert slept == []
+
+
+def test_sacct_watch_polls_until_terminal(monkeypatch, capsys):
+    client = FakeMLClient()
+    client.jobs = TransitioningJobs("job_run", ["Running", "Running", "Completed"])
+    monkeypatch.setattr(jobcontrol, "get_ml_client", lambda: client)
+    slept = []
+    monkeypatch.setattr("time.sleep", lambda s: slept.append(s))
+    show_job_status("sacct", ["job_run", "-w", "--interval", "5"])
+    out = capsys.readouterr().out
+    assert client.jobs.calls == 3
+    assert slept == [5, 5]
+    assert out.count("== ") == 3
+    assert "Completed" in out
+
+
+def test_sacct_watch_missing_job_stops_and_exits_nonzero(stub_client, monkeypatch, capsys):
+    stub_client(missing={"ghost"})
+    monkeypatch.setattr("time.sleep", lambda s: (_ for _ in ()).throw(AssertionError("should not sleep")))
+    with pytest.raises(SystemExit) as exc:
+        show_job_status("sacct", ["ghost", "--watch"])
+    assert exc.value.code == 1
+    assert "job 'ghost' not found" in capsys.readouterr().out
+
+
 def test_wrappers_delegate(monkeypatch):
     from amlhpc.slurm.sacct import sacct
     from amlhpc.slurm.sstat import sstat

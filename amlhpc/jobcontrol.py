@@ -99,16 +99,36 @@ def show_job_status(prog, vargs):
 
     Unlike squeue/qstat (which list every job), sacct targets specific
     JOBIDs and adds start/end timestamps from the job's lifecycle metadata.
+    With -w/--watch it re-polls until every named job reaches a terminal state.
     """
     import argparse
 
     parser = argparse.ArgumentParser(description=prog + ": accounting status for Azure Machine Learning jobs")
     parser.prog = prog
     parser.add_argument('jobid', nargs='+', help='one or more JOBIDs to report (see squeue/qstat/bjobs)')
+    parser.add_argument('-w', '--watch', action='store_true',
+                        help='re-poll and reprint until every named job reaches a terminal state')
+    parser.add_argument('--interval', default=30, type=int,
+                        help='seconds between refreshes when --watch is set (default: 30)')
     args = parser.parse_args(vargs)
 
     ml_client = get_ml_client()
 
+    if args.watch:
+        exit_code = _watch_job_status(prog, ml_client, args.jobid, args.interval)
+    else:
+        exit_code, _ = _print_job_status(prog, ml_client, args.jobid)
+
+    if exit_code:
+        exit(exit_code)
+
+
+def _print_job_status(prog, ml_client, jobids):
+    """Print the sacct table for jobids once. Returns (exit_code, statuses).
+
+    statuses maps each jobid to its status string, or None when the job was
+    not found / could not be fetched, so the watch loop treats it as finished.
+    """
     from azure.core.exceptions import ResourceNotFoundError
 
     header = ("JOBID" + " " * 27 + "NAME" + " " * 12 + "PARTITION" + " " * 7
@@ -116,29 +136,57 @@ def show_job_status(prog, vargs):
     print(header)
 
     exit_code = 0
-    for jobid in args.jobid:
+    statuses = {}
+    for jobid in jobids:
         try:
             job = ml_client.jobs.get(jobid)
         except ResourceNotFoundError:
             print(prog + ": job '" + jobid + "' not found")
             exit_code = 1
+            statuses[jobid] = None
             continue
         except Exception as error:
             print(prog + ": failed to get job '" + jobid + "': " + str(error))
             exit_code = 1
+            statuses[jobid] = None
             continue
 
         start, end = _job_times(job)
         name = (job.name or "")[:31].ljust(32)
         display = str(getattr(job, "display_name", "") or "")[:15].ljust(16)
         compute = str(getattr(job, "compute", "") or "")[:15].ljust(16)
-        state = str(getattr(job, "status", "") or "").ljust(16)
+        state_val = str(getattr(job, "status", "") or "")
+        state = state_val.ljust(16)
         start_s = (start.strftime("%Y-%m-%dT%H:%M:%S") if start else "-").ljust(20)
         end_s = end.strftime("%Y-%m-%dT%H:%M:%S") if end else "-"
         print(name + display + compute + state + start_s + end_s)
+        statuses[jobid] = state_val
 
-    if exit_code:
-        exit(exit_code)
+    return exit_code, statuses
+
+
+def _watch_job_status(prog, ml_client, jobids, interval):
+    """Reprint the sacct table every ``interval`` seconds until all jobs stop.
+
+    A missing/errored job counts as finished so the loop can end; the returned
+    exit code is non-zero if any poll reported such a job.
+    """
+    import time
+    from datetime import datetime, timezone
+
+    from .deploy import is_terminal_state
+
+    exit_code = 0
+    while True:
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        print("== " + stamp + " ==")
+        code, statuses = _print_job_status(prog, ml_client, jobids)
+        if code:
+            exit_code = code
+        if all(s is None or is_terminal_state(s) for s in statuses.values()):
+            return exit_code
+        time.sleep(interval)
+
 
 
 def show_job_stats(prog, vargs):
